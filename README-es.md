@@ -1,6 +1,7 @@
 # Secure Community Application - SCA
-
+<div align = "center">
 ![Alt text](/images/logo.png)
+</div>
 
 Este es un proyecto escolar cuyo propósito es ayudar a una comunidad obejtivo a tener un medio de comunicación mas eficiente que los que existen actualmente; busca reemplazar la ambigüedad de las funciones de otras aplicaciones, las características que ofrecen y el flujo entre los mensajes.
 
