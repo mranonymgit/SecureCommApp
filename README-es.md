@@ -1,6 +1,6 @@
 # Secure Community Application - SCA
 <div align="center">
-  <img src="./images/logo.png" alt="Icono SCA">
+  <img src="/images/logo.png" alt="Icono SCA">
 </div>
 
 
@@ -18,5 +18,5 @@ Puede realizar los cambios que considere necesarios y realizar su propio diseño
 Esta aplicación ha sido desarrollada mediante el quinto cuatrmestre de la carrera de Ingeniería en Tecnologías de la Información e Innovación Digital de la Universidad Politécnica del Valle de Toluca.
 
 <div align="center">
-  <img src="./images/flutter_icon.png" alt="Texto alternativo" />
+  <img src="/images/flutter_icon.png" alt="Texto alternativo" />
 </div>
