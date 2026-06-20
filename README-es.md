@@ -15,4 +15,4 @@ Puede realizar los cambios que considere necesarios y realizar su propio diseño
 
 Esta aplicación ha sido desarrollada mediante el quinto cuatrmestre de la carrera de Ingeniería en Tecnologías de la Información e Innovación Digital de la Universidad Politécnica del Valle de Toluca.
 
-<img src="https://jsdelivr.net" alt="Flutter" width="30" height="30" />
+<img src="https://jsdelivr.net" alt="Flutter" width="30" height="30" style="filter: invert(1);" />
