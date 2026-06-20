@@ -20,8 +20,8 @@ Puede realizar los cambios que considere necesarios y realizar su propio diseño
 **Los lenguajes de Programación que se están utilizando son:**
 
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
-![Python](https://shields.io) ![Docker](https://shields.io)
-
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 <div align="center">
   <img src="/images/flutter_icon.png" alt="Texto alternativo" />
 </div>
