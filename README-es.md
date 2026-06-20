@@ -6,7 +6,7 @@ Este es un proyecto cuyo propósito es ayudar a la comunidad a tener un medio de
 
 # Inicio
 Para clonar el repositorio principal:
-'''bash
+```bash
 git clone https://github.com/mranonymgit/SecureCommApp.git
 cd ~/SCA
-'''
+```
