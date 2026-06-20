@@ -14,4 +14,4 @@ npm-debug.log*
 Thumbs.db
 
 # Archvios locales
-.png
+/images
