@@ -1,0 +1,14 @@
+# Dependencias de Node.js / Backend (por si usas JavaScript/TypeScript)
+node_modules/
+npm-debug.log*
+
+# Archivos de entorno con claves secretas (¡Súper importante para tu app segura!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
