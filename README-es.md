@@ -1,4 +1,5 @@
 # Secure Community Application - SCA
+
 <div align="center">
   <img src="/images/logo.png" alt="Icono SCA">
 </div>
@@ -26,7 +27,7 @@ Puede realizar los cambios que considere necesarios y realizar su propio diseño
 ## Enlace de la aplciación si se requiere ver cómo funciona
 
 
-## Notas importantes
+# Notas importantes
 *Dado que es un proyecto desarrollado como proyecto final de Universidad, no tiene como tal un valor ni mucho menos licencias legales de integración, por lo que se puede editar en cualquier momento.*
 
 ## Enlace de la Guía del Usuario Final
