@@ -17,11 +17,21 @@ Puede realizar los cambios que considere necesarios y realizar su propio diseño
 
 **Esta aplicación ha sido desarrollada mediante el quinto cuatrimestre de la carrera de Ingeniería en Tecnologías de la Información e Innovación Digital de la Universidad Politécnica del Valle de Toluca.**
 
-**Los lenguajes de Programación que se están utilizando son:**
+**Los lenguajes de Programación que se han usado en el desarrollo son:**
 
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-<div align="center">
-  <img src="/images/flutter_icon.png" alt="Texto alternativo" />
-</div>
+
+## Enlace de la aplciación si se requiere ver cómo funciona
+
+
+## Notas importantes
+*Dado que es un proyecto desarrollado como proyecto final de Universidad, no tiene como tal un valor ni mucho menos licencias legales de integración, por lo que se puede editar en cualquier momento.*
+
+## Enlace de la Guía del Usuario Final
+
+
+## Enlcae de la Documentación Ofical de SCA
+
+
