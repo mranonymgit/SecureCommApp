@@ -1,29 +1,14 @@
 import 'package:flutter/material.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class TarjetaNoticia extends StatelessWidget {
+  const TarjetaNoticia({super.key, required this.titulo, required this.fecha});
+
+  final String titulo;
+  final String fecha;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 245, 245, 245),
-      appBar: AppBar(
-        title: const Text(
-          'Mi Vecindario',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Color.fromARGB(221, 255, 255, 255)),
-        ),
-        backgroundColor: const Color.fromARGB(255, 18, 109, 151),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Color.fromARGB(221, 255, 255, 255)),
-            onPressed: () {
-              // Aquí irá la lógica de notificaciones más adelante
-            },
-          ),
-        ],
-      ),
-      body: Card(
+  Widget build(BuildContext context){
+    return Card(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -34,12 +19,12 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Corte de agua programado para el miércoles. ',
+                Text(titulo,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),),
-                Text('Hace 2 horas',
+                Text(fecha,
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey,
@@ -49,7 +34,6 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

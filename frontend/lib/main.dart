@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/features/news/presentation/screens/home_screen.dart'; 
+import 'package:frontend/features/auth/presentation/screens/loginScreen.dart';
+import 'package:frontend/core/theme/app_theme.dart';
 
 void main() {
   runApp(const VecinalApp());
@@ -12,12 +13,9 @@ class VecinalApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'App Vecinal',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        useMaterial3: true,
-      ),
-      home: const HomeScreen(),
+      title: 'SCA',
+      theme: AppTheme.lightTheme,
+      home: const LoginScreen(),
     );
   }
 }
