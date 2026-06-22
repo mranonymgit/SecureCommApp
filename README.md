@@ -24,6 +24,9 @@ You can make any changes you deem necessary and create your own design for the a
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
+![OAuth2.0](https://img.shields.io/badge/OAuth2.0-ACTIVATED-4CAF50?style=for-the-badge&logo=oauth&logoColor=white)
+![Tokens](https://img.shields.io/badge/TOKENS-Activated-4CAF50?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
 
 ## Application link if you need to see how it works
 
