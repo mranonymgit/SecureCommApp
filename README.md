@@ -18,7 +18,7 @@ You can make any changes you deem necessary and create your own design for the a
 
 **This application was developed during the fifth term of the Information Technology and Digital Innovation Engineering program at the Universidad Politécnica del Valle de Toluca.**
 
-**The programming languages used in the development are:**
+**The tools used in the development are:**
 
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
