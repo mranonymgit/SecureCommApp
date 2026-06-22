@@ -11,7 +11,7 @@ Este es un proyecto escolar cuyo propósito es ayudar a una comunidad obejtivo a
 Para clonar el repositorio principal:
 ```bash
 git clone https://github.com/mranonymgit/SecureCommApp.git
-cd /SCA
+cd /SecureCommunityApp
 ```
 
 Puede realizar los cambios que considere necesarios y realizar su propio diseño de la aplicación.

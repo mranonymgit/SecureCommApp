@@ -12,7 +12,7 @@ This is a school project whose purpose is to help a target community have a more
 To clone the main repository:
 ```bash
 git clone https://github.com/mranonymgit/SecureCommApp.git
-cd /SCA
+cd /SecureCommunityApp
 ```
 You can make any changes you deem necessary and create your own design for the application.
 
@@ -23,6 +23,7 @@ You can make any changes you deem necessary and create your own design for the a
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white)
 
 ## Application link if you need to see how it works
 
