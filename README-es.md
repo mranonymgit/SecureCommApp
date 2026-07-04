@@ -32,7 +32,7 @@ Puede realizar los cambios que considere necesarios y realizar su propio diseño
 
 
 # Notas importantes
-*Dado que es un proyecto desarrollado como proyecto final de Universidad, no tiene como tal un valor ni mucho menos licencias legales de integración, por lo que se puede editar en cualquier momento.*
+*Dado que es una aplicación desarrollado como proyecto final de Universidad, no tiene como tal un valor ni mucho menos licencias legales de integración, por lo que se puede editar en cualquier momento.*
 
 ## Enlace de la Guía del Usuario Final
 

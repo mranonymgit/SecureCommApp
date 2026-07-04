@@ -1,4 +1,6 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:frontend/core/utils/media_picker.dart';
 
 class CreateReportScreen extends StatefulWidget {
   const CreateReportScreen ({super.key});
@@ -7,7 +9,8 @@ class CreateReportScreen extends StatefulWidget {
   State<CreateReportScreen> createState() => _CreateReportScreenState();
 }
 
-class _CreateReportScreenState extends State<CreateReportScreen> {
+class _CreateReportScreenState extends State<CreateReportScreen> with MediaPickerMixin {
+  PlatformFile? _selectedFile;
 
   final TextEditingController _tituloController = TextEditingController();
   final TextEditingController _descripcionController = TextEditingController();
@@ -17,6 +20,20 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
     _tituloController.dispose();
     _descripcionController.dispose();
     super.dispose();
+  }
+  Future<void> _handleAttach() async {
+    final file = await pickMedia();
+    if (file != null) {
+      if ((file.size / 1024 / 1024) > 5) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('El archivo es muy pesado (máx 5MB).'), backgroundColor: Colors.red),
+        );
+      } else {
+        setState(() => _selectedFile = file);
+      }
+    }
   }
 
   @override
@@ -54,6 +71,25 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
                 border: OutlineInputBorder(),
               ),
             ),
+            SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: _handleAttach,
+              icon: const Icon(Icons.attach_file),
+              label: Text(_selectedFile == null ? 'Adjuntar archivo' : 'Cambiar archivo'),
+            ),
+            if (_selectedFile != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: ListTile(
+                  leading: const Icon(Icons.file_present),
+                  title: Text(_selectedFile!.name),
+                  subtitle: Text('${(_selectedFile!.size / 1024).toStringAsFixed(1)} KB'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.red),
+                    onPressed: () => setState(() => _selectedFile = null),
+                  ),
+                ),
+              ),
             SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () {

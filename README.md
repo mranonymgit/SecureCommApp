@@ -32,7 +32,7 @@ You can make any changes you deem necessary and create your own design for the a
 
 
 ### Important notes
-Since this is a project developed as a final university project, it does not have any formal value as such, let alone legal integration licenses, so it can be edited at any time.
+Since this is a application developed as a final university project, it does not have any formal value as such, let alone legal integration licenses, so it can be edited at any time.
 
 ## End User Guide Link
 

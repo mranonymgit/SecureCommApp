@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/features/news/presentation/widgets/tarjeta_noticia.dart';
-import 'package:frontend/features/news/presentation/screens/reportScreen.dart';
+import 'package:frontend/features/reports/presentation/screens/reportScreen.dart';
 import 'package:frontend/features/chat/presentation/screens/chatScreen.dart';
 import 'package:frontend/features/settings/presentation/screens/T&C.dart';
 import 'package:frontend/features/settings/presentation/screens/perfil.dart';
