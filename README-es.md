@@ -1,7 +1,7 @@
 # Secure Community Application - SCA
 
-<div align="center" style="width: 250px; margin: auto;">
-  <img src="/images/Icon.jpg" alt="Icono SCA">
+<div align="center" style="width: 50%; margin: auto;">
+  <img src="/images/Icon.jpg" alt="Icono SCA" width="100%">
 </div>
 
 
