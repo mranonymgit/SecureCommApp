@@ -1,7 +1,7 @@
 # Secure Community Application - SCA
 
 <div align="center">
-  <img src="/images/logo.png" alt="Icono SCA">
+  <img src="/images/Icon.jpg" alt="Icono SCA">
 </div>
 
 
