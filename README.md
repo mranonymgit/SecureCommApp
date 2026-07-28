@@ -1,8 +1,8 @@
 [Leer en Español 🇪🇸](README-es.md)
 # Secure Community Application - SCA 
 
-<div align="center" style="width: 50%; margin: auto;">
-  <img src="/images/Icon.jpg" alt="Icono SCA" width="100%">
+<div align="center" style="width: 10%; margin: auto;">
+  <img src="/images/Icon.jpg" alt="Icono SCA" width="20%">
 </div>
 
 This is a school project whose purpose is to help a target community have a more efficient means of communication than those currently existing; it seeks to replace the ambiguity of other applications functions, the features they offer, and the flow between messages.
