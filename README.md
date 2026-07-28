@@ -1,7 +1,7 @@
 [Leer en Español 🇪🇸](README-es.md)
 # Secure Community Application - SCA 
 
-<div align="center">
+<div align="center" style="width: 250px; margin: auto;">
   <img src="/images/Icon.jpg" alt="Icono SCA">
 </div>
 
