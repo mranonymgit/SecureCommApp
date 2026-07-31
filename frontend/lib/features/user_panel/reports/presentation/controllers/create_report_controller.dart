@@ -31,14 +31,16 @@ class CreateReportController extends ChangeNotifier {
 
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled)
+      if (!serviceEnabled) {
         throw Exception('El servicio de ubicación está desactivado.');
+      }
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied)
+        if (permission == LocationPermission.denied) {
           throw Exception('Permiso denegado.');
+        }
       }
       if (permission == LocationPermission.deniedForever) {
         throw Exception('Permisos denegados permanentemente.');
@@ -117,12 +119,6 @@ class CreateReportController extends ChangeNotifier {
           'Selecciona la ubicación exacta antes de enviar el reporte.',
         );
       }
-      if (selectedImage != null) {
-        throw Exception(
-          'La evidencia fotográfica requiere configurar Supabase Storage antes de enviarse.',
-        );
-      }
-
       final report = CommunityReport(
         title: tituloController.text,
         description: descripcionController.text,

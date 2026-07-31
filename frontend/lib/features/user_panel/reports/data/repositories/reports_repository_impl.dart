@@ -34,15 +34,33 @@ class ReportsRepositoryImpl implements ReportsRepository {
       imagePath: report.imagePath,
     ).toJson();
 
-    final evidenceUri = report.imagePath == null
-        ? null
-        : Uri.tryParse(report.imagePath!);
-    if (evidenceUri != null &&
-        evidenceUri.hasScheme &&
-        (evidenceUri.scheme == 'https' || evidenceUri.scheme == 'http')) {
-      payload['evidence_url'] = report.imagePath;
+    if (report.imageBytes != null) {
+      final filename = _filename(report.imagePath);
+      final upload = await _apiClient.uploadBytes(
+        '/api/storage/report-evidence',
+        bytes: report.imageBytes!,
+        filename: filename,
+        contentType: _imageContentType(filename),
+      );
+      payload['evidence_url'] = upload['object_path'];
     }
 
     await _apiClient.postJson('/api/admin/reports', payload);
+  }
+
+  String _filename(String? path) {
+    final candidate = path?.split('/').last.split('\\').last;
+    return candidate == null || !candidate.contains('.')
+        ? 'evidence.jpg'
+        : candidate;
+  }
+
+  String _imageContentType(String filename) {
+    final extension = filename.toLowerCase().split('.').last;
+    return switch (extension) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      _ => 'image/jpeg',
+    };
   }
 }

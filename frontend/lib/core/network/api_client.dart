@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import 'api_config.dart';
 import 'api_exception.dart';
@@ -86,6 +87,27 @@ class ApiClient {
 
   Future<Map<String, dynamic>> deleteJson(String path) async {
     final response = await _client.delete(_uri(path), headers: _headers());
+    return _decodeResponse(response);
+  }
+
+  Future<Map<String, dynamic>> uploadBytes(
+    String path, {
+    required List<int> bytes,
+    required String filename,
+    required String contentType,
+  }) async {
+    final request = http.MultipartRequest('POST', _uri(path));
+    request.headers.addAll(_headers(json: false));
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: filename,
+        contentType: MediaType.parse(contentType),
+      ),
+    );
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
     return _decodeResponse(response);
   }
 

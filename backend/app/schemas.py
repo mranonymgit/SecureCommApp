@@ -212,6 +212,12 @@ class ChatMessageOut(BaseModel):
     es_mio: bool | None = None
 
 
+class StorageUploadOut(BaseModel):
+    object_path: str
+    content_type: str
+    size: int
+
+
 class ReportCreate(BaseModel):
     title: str
     description: str

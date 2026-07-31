@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .core.deps import AuthClaims, get_current_claims, get_rls_session, require_admin
@@ -35,11 +35,20 @@ from .schemas import (
     SosToggleRequest,
     PasswordChangeRequest,
     TokenResponse,
+    StorageUploadOut,
 )
 from .services import AccessService, AnnouncementService, AuthService, ChatService, DashboardService, ReportService, ResidentService, UserProfileService
 from .core.database import get_session
+from .storage import SupabaseStorageService
 
 router = APIRouter(prefix="/api")
+
+
+@router.post("/storage/{kind}", response_model=StorageUploadOut)
+async def upload_storage_file(kind: str, file: UploadFile = File(...), claims: AuthClaims = Depends(get_current_claims)):
+    storage = SupabaseStorageService()
+    uploaded = await storage.upload(kind=kind, community_id=UUID(claims.community_id), user_id=UUID(claims.user_id), file=file)
+    return StorageUploadOut(**uploaded)
 
 
 def _serialize_chat_message(item, current_user_id: UUID | None = None) -> ChatMessageOut:
