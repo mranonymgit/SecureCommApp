@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -38,6 +39,45 @@ def create_access_token(*, subject: str, community_id: str, role: str, email: st
         "iss": "sca-api",
     }
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
+def create_realtime_token(*, subject: str, community_id: str, user_role: str) -> str | None:
+    """Create the short-lived JWT used only by Supabase Realtime/RLS.
+
+    Supabase requires its built-in ``role`` claim to be ``authenticated``.
+    SCA's authorization role is deliberately stored separately in
+    ``user_role`` so an admin cannot acquire Supabase privileges implicitly.
+    """
+    configured_key = settings.supabase_jwt_signing_key or settings.supabase_jwt_secret
+    if not configured_key:
+        return None
+    signing_key: str | dict[str, Any] = configured_key
+    if configured_key.lstrip().startswith("{"):
+        try:
+            parsed_key = json.loads(configured_key)
+        except json.JSONDecodeError as exc:
+            raise ValueError("SUPABASE_JWT_SIGNING_KEY is not valid JSON") from exc
+        if not isinstance(parsed_key, dict):
+            raise ValueError("SUPABASE_JWT_SIGNING_KEY must be a private JWK object")
+        signing_key = parsed_key
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=settings.supabase_realtime_token_expire_minutes)
+    payload: dict[str, Any] = {
+        "sub": subject,
+        "role": "authenticated",
+        "user_role": user_role,
+        "community_id": community_id,
+        "aud": "authenticated",
+        "iat": now,
+        "exp": expire,
+    }
+    headers = {"kid": settings.supabase_jwt_key_id} if settings.supabase_jwt_key_id else None
+    return jwt.encode(
+        payload,
+        signing_key,
+        algorithm=settings.supabase_jwt_algorithm,
+        headers=headers,
+    )
 
 
 def decode_token(token: str) -> dict[str, Any]:

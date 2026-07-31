@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import '../../../../../core/presentation/app_toast.dart';
 import '../../data/repositories/reports_repository_impl.dart';
 import '../../domain/usecases/get_emergency_profile_usecase.dart';
 import '../../domain/usecases/trigger_sos_alert_usecase.dart';
@@ -18,6 +21,8 @@ class _EmergencyScreenState extends State<EmergencyScreen>
     with SingleTickerProviderStateMixin {
   late final EmergencyController _controller;
   late AnimationController _animationController;
+  Timer? _sosHoldTimer;
+  bool _isHoldingSos = false;
 
   @override
   void initState() {
@@ -41,30 +46,48 @@ class _EmergencyScreenState extends State<EmergencyScreen>
   @override
   void dispose() {
     _animationController.dispose();
+    _sosHoldTimer?.cancel();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
 
-  void _onEmergencyTap() async {
-    await _controller.toggleEmergency();
+  Future<void> _deactivateEmergency() async {
+    await _controller.deactivateEmergency();
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _controller.errorMessage ??
-              (_controller.emergencyActive
-                  ? 'Alerta SOS registrada para la administración.'
-                  : 'Alerta SOS desactivada.'),
-        ),
-        backgroundColor: _controller.errorMessage != null
-            ? Theme.of(context).colorScheme.error
-            : (_controller.emergencyActive
-                  ? Theme.of(context).colorScheme.error
-                  : Colors.green),
-        duration: const Duration(seconds: 4),
-      ),
-    );
+    final error = _controller.actionErrorMessage;
+    if (error != null) {
+      AppToast.error(context, error);
+    } else {
+      AppToast.success(context, 'Alerta SOS desactivada.');
+    }
+  }
+
+  void _startSosHold() {
+    if (_controller.emergencyActive || _isHoldingSos) return;
+    setState(() => _isHoldingSos = true);
+    _sosHoldTimer = Timer(const Duration(seconds: 5), () async {
+      if (!_isHoldingSos) return;
+      setState(() => _isHoldingSos = false);
+      await _controller.activateEmergency();
+      if (!mounted) return;
+      final error = _controller.actionErrorMessage;
+      if (error != null) {
+        AppToast.error(context, error);
+      } else {
+        AppToast.warning(
+          context,
+          'Alerta SOS registrada para la administración.',
+        );
+      }
+    });
+  }
+
+  void _cancelSosHold() {
+    if (!_isHoldingSos) return;
+    _sosHoldTimer?.cancel();
+    _sosHoldTimer = null;
+    setState(() => _isHoldingSos = false);
   }
 
   @override
@@ -97,20 +120,27 @@ class _EmergencyScreenState extends State<EmergencyScreen>
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Presiona el botón para notificar inmediatamente a los vecinos y seguridad',
+                    _controller.emergencyActive
+                        ? 'La alerta está activa. Presiona el botón para cancelarla.'
+                        : 'Mantén presionado SOS durante 5 segundos para confirmar una emergencia.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 13,
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.6),
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 24),
 
                   // 🔴 Botón SOS Animado
                   GestureDetector(
-                    onTap: _onEmergencyTap,
+                    onTap: _controller.emergencyActive
+                        ? _deactivateEmergency
+                        : null,
+                    onLongPressStart: (_) => _startSosHold(),
+                    onLongPressEnd: (_) => _cancelSosHold(),
+                    onLongPressCancel: _cancelSosHold,
                     child: AnimatedBuilder(
                       animation: _animationController,
                       builder: (context, child) {
@@ -123,7 +153,7 @@ class _EmergencyScreenState extends State<EmergencyScreen>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Theme.of(context).colorScheme.error
-                                .withOpacity(
+                                .withValues(alpha: 
                                   _controller.emergencyActive
                                       ? 0.2 + (0.3 * _animationController.value)
                                       : 0.1,
@@ -140,7 +170,7 @@ class _EmergencyScreenState extends State<EmergencyScreen>
                                         const Color(0xFFFF0000),
                                         const Color(
                                           0xFFB71C1C,
-                                        ).withOpacity(0.8),
+                                        ).withValues(alpha: 0.8),
                                       ]
                                     : [
                                         const Color(0xFFFF0000),
@@ -153,7 +183,7 @@ class _EmergencyScreenState extends State<EmergencyScreen>
                                 BoxShadow(
                                   color: Theme.of(
                                     context,
-                                  ).colorScheme.error.withOpacity(0.6),
+                                  ).colorScheme.error.withValues(alpha: 0.6),
                                   blurRadius: _controller.emergencyActive
                                       ? 25
                                       : 12,
@@ -177,7 +207,9 @@ class _EmergencyScreenState extends State<EmergencyScreen>
                                 Text(
                                   _controller.emergencyActive
                                       ? 'CANCELAR'
-                                      : '¡AYUDA!',
+                                      : (_isHoldingSos
+                                            ? 'CONFIRMANDO...'
+                                            : 'MANTÉN 5s'),
                                   style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
@@ -274,11 +306,11 @@ class _EmergencyScreenState extends State<EmergencyScreen>
                     ),
                   ),
                   const SizedBox(height: 12),
-                  if (_controller.errorMessage != null)
+                  if (_controller.loadErrorMessage != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Text(
-                        _controller.errorMessage!,
+                        _controller.loadErrorMessage!,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.error,
@@ -306,7 +338,7 @@ class _EmergencyScreenState extends State<EmergencyScreen>
                                 Icons.badge_outlined,
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.onSurface.withOpacity(0.5),
+                                ).colorScheme.onSurface.withValues(alpha: 0.5),
                                 size: 36,
                               ),
                               const SizedBox(height: 10),
@@ -316,7 +348,7 @@ class _EmergencyScreenState extends State<EmergencyScreen>
                                 style: TextStyle(
                                   color: Theme.of(
                                     context,
-                                  ).colorScheme.onSurface.withOpacity(0.7),
+                                  ).colorScheme.onSurface.withValues(alpha: 0.7),
                                 ),
                               ),
                             ],

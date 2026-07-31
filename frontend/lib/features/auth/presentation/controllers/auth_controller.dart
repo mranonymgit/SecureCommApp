@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/network/api_config.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_error_message.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/reset_password_usecase.dart';
@@ -31,13 +32,17 @@ class AuthController extends ChangeNotifier {
     } on ApiException catch (e) {
       errorMessage = e.statusCode == 401
           ? 'Correo o contraseña incorrectos.'
-          : 'El servidor rechazó el inicio de sesión (${e.statusCode}).';
+          : e.statusCode == 403
+          ? 'La cuenta está suspendida. Contacta a la administración.'
+          : ApiErrorMessage.from(e, fallback: 'No fue posible iniciar sesión.');
       debugPrint('Error de inicio de sesión: $e');
       return null;
     } catch (e) {
-      errorMessage =
-          'No se pudo conectar con la API en ${ApiConfig.baseUrl}. '
-          'Verifica SCA_API_URL y que el backend esté disponible.';
+      errorMessage = ApiErrorMessage.from(
+        e,
+        fallback:
+            'No se pudo conectar con la API en ${ApiConfig.baseUrl}. Verifica que el backend esté disponible.',
+      );
       debugPrint('Error de conexión al iniciar sesión: $e');
       return null;
     } finally {

@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .core.deps import AuthClaims, get_current_claims, get_rls_session, require_admin
@@ -29,7 +30,9 @@ from .schemas import (
     ReportCreate,
     ReportOut,
     ReportStatusUpdate,
+    RealtimeTokenResponse,
     ResidentCreate,
+    ResidentStatusUpdate,
     ResidentOut,
     PreferencesOut,
     PreferencesUpdateRequest,
@@ -39,6 +42,7 @@ from .schemas import (
     SosToggleRequest,
     SosProximityOut,
     PasswordChangeRequest,
+    PublicPasswordChangeRequest,
     PasswordChangeRequestOut,
     TokenResponse,
     StorageUploadOut,
@@ -46,6 +50,8 @@ from .schemas import (
 from .services import AccessService, AnnouncementService, AuthService, ChatService, DashboardService, ReportService, ResidentService, UserProfileService
 from .core.database import get_session
 from .storage import SupabaseStorageService
+from .core.config import get_settings
+from .core.security import create_realtime_token
 
 router = APIRouter(prefix="/api")
 
@@ -59,6 +65,7 @@ async def _signed_media_url(value: str | None) -> str | None:
 
 
 async def _serialize_report(item) -> ReportOut:
+    reporter = item.__dict__.get("reporter_user")
     return ReportOut(
         id=item.id,
         title=item.title,
@@ -68,7 +75,7 @@ async def _serialize_report(item) -> ReportOut:
         latitude=float(item.latitude) if item.latitude is not None else None,
         longitude=float(item.longitude) if item.longitude is not None else None,
         status=item.status,
-        reporter=str(item.reporter_user_id),
+        reporter=reporter.full_name if reporter else str(item.reporter_user_id),
         created_at=item.created_at,
         evidence_url=await _signed_media_url(item.evidence_url),
     )
@@ -117,10 +124,11 @@ async def _serialize_chat_message(item, current_user_id: UUID | None = None) -> 
 @router.post("/auth/login", response_model=LoginResponse)
 async def login(payload: LoginRequest, session: AsyncSession = Depends(get_session)):
     service = AuthService(session)
-    user, token = await service.login(payload.community_slug, payload.email, payload.password)
+    user, token, realtime_token = await service.login(payload.community_slug, payload.email, payload.password)
     await session.commit()
     return LoginResponse(
         access_token=token,
+        realtime_token=realtime_token,
         user=LoginUserOut(
             id=user.id,
             username=user.email,
@@ -131,6 +139,25 @@ async def login(payload: LoginRequest, session: AsyncSession = Depends(get_sessi
             phone=user.phone,
             avatar_url=await _signed_media_url(user.avatar_url),
         ),
+    )
+
+
+@router.post("/auth/realtime-token", response_model=RealtimeTokenResponse)
+async def refresh_realtime_token(claims: AuthClaims = Depends(get_current_claims)):
+    token = create_realtime_token(
+        subject=claims.user_id,
+        community_id=claims.community_id,
+        user_role=claims.role,
+    )
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Supabase Realtime is not configured",
+        )
+    settings = get_settings()
+    return RealtimeTokenResponse(
+        realtime_token=token,
+        expires_in=settings.supabase_realtime_token_expire_minutes * 60,
     )
 
 
@@ -148,6 +175,14 @@ async def change_password(
         await session.commit()
         return {"success": True, "pending_approval": False}
     await service.request_password_change(UUID(claims.community_id), UUID(claims.user_id), payload.new_password)
+    await session.commit()
+    return {"success": True, "pending_approval": True}
+
+
+@router.post("/auth/password-change-request")
+async def public_password_change_request(payload: PublicPasswordChangeRequest, session: AsyncSession = Depends(get_session)):
+    # Approval is still required, and the generic response prevents account enumeration.
+    await AuthService(session).request_password_change_by_email(payload.community_slug, payload.email, payload.new_password)
     await session.commit()
     return {"success": True, "pending_approval": True}
 
@@ -186,9 +221,15 @@ async def list_residents(session: AsyncSession = Depends(get_rls_session), claim
 @router.post("/admin/residents", response_model=ResidentOut, dependencies=[Depends(require_admin)])
 async def create_resident(payload: ResidentCreate, session: AsyncSession = Depends(get_rls_session), claims: AuthClaims = Depends(get_current_claims)):
     service = ResidentService(session)
-    user = await service.create(community_id=UUID(claims.community_id), payload=payload)
-    await session.commit()
-    return ResidentOut(
+    try:
+        user = await service.create(community_id=UUID(claims.community_id), payload=payload)
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El correo o teléfono ya está registrado en esta comunidad",
+        ) from exc
+    response = ResidentOut(
         id=user.id,
         full_name=user.full_name,
         email=user.email,
@@ -203,6 +244,37 @@ async def create_resident(payload: ResidentCreate, session: AsyncSession = Depen
         emergency_contact=payload.emergency_contact_name,
         avatar_url="",
     )
+    await session.commit()
+    return response
+
+
+@router.patch("/admin/residents/{resident_id}/status", response_model=ResidentOut, dependencies=[Depends(require_admin)])
+async def set_resident_status(resident_id: UUID, payload: ResidentStatusUpdate, session: AsyncSession = Depends(get_rls_session), claims: AuthClaims = Depends(get_current_claims)):
+    service = ResidentService(session)
+    user = await service.set_active(UUID(claims.community_id), resident_id, payload.active)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resident not found")
+    response = ResidentOut(
+        id=user.id,
+        full_name=user.full_name,
+        email=user.email,
+        phone=user.phone,
+        unit=None,
+        unit_id=user.unit_id,
+        role=user.role,
+        status=user.status.value if hasattr(user.status, "value") else str(user.status),
+        avatar_url=await _signed_media_url(user.avatar_url),
+    )
+    await session.commit()
+    return response
+
+
+@router.delete("/admin/residents/{resident_id}", dependencies=[Depends(require_admin)])
+async def delete_resident(resident_id: UUID, session: AsyncSession = Depends(get_rls_session), claims: AuthClaims = Depends(get_current_claims)):
+    if not await ResidentService(session).soft_delete(UUID(claims.community_id), resident_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resident not found")
+    await session.commit()
+    return {"success": True}
 
 
 @router.get("/admin/access-logs", response_model=list[AccessLogOut], dependencies=[Depends(require_admin)])
@@ -259,9 +331,11 @@ async def list_announcements(session: AsyncSession = Depends(get_rls_session), c
 @router.post("/admin/announcements", response_model=AnnouncementOut, dependencies=[Depends(require_admin)])
 async def create_announcement(payload: AnnouncementCreate, session: AsyncSession = Depends(get_rls_session), claims: AuthClaims = Depends(get_current_claims)):
     service = AnnouncementService(session)
-    item = await service.create(community_id=UUID(claims.community_id), author_id=UUID(claims.user_id), payload=payload)
-    await session.commit()
-    return AnnouncementOut(
+    try:
+        item = await service.create(community_id=UUID(claims.community_id), author_id=UUID(claims.user_id), payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Datos del comunicado no válidos") from exc
+    response = AnnouncementOut(
         id=item.id,
         title=item.title,
         category=item.category,
@@ -275,17 +349,22 @@ async def create_announcement(payload: AnnouncementCreate, session: AsyncSession
         dislikes=0,
         user_reaction=None,
     )
+    await session.commit()
+    return response
 
 
 @router.post("/admin/announcements/{announcement_id}/reaction")
 async def react_to_announcement(announcement_id: UUID, payload: AnnouncementReactionRequest, session: AsyncSession = Depends(get_rls_session), claims: AuthClaims = Depends(get_current_claims)):
     service = AnnouncementService(session)
-    summary = await service.repo.set_reaction(
-        community_id=UUID(claims.community_id),
-        announcement_id=announcement_id,
-        user_id=UUID(claims.user_id),
-        reaction=payload.reaction.lower() if payload.reaction else None,
-    )
+    try:
+        summary = await service.repo.set_reaction(
+            community_id=UUID(claims.community_id),
+            announcement_id=announcement_id,
+            user_id=UUID(claims.user_id),
+            reaction=payload.reaction,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Announcement not found") from exc
     await session.commit()
     return {"success": True, **summary}
 
@@ -316,14 +395,20 @@ async def list_chat_messages(thread_id: UUID, session: AsyncSession = Depends(ge
 @router.post("/chat/messages", response_model=ChatMessageOut)
 async def send_chat_message(payload: ChatMessageCreate, session: AsyncSession = Depends(get_rls_session), claims: AuthClaims = Depends(get_current_claims)):
     service = ChatService(session)
-    item = await service.send_message(
-        community_id=UUID(claims.community_id),
-        sender_id=UUID(claims.user_id),
-        is_admin=claims.role == "admin",
-        payload=payload,
-    )
+    try:
+        item = await service.send_message(
+            community_id=UUID(claims.community_id),
+            sender_id=UUID(claims.user_id),
+            is_admin=claims.role == "admin",
+            payload=payload,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat thread not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid chat message") from exc
+    response = await _serialize_chat_message(item, current_user_id=UUID(claims.user_id))
     await session.commit()
-    return await _serialize_chat_message(item, current_user_id=UUID(claims.user_id))
+    return response
 
 
 @router.get("/admin/reports", response_model=list[ReportOut])
@@ -336,17 +421,22 @@ async def list_reports(session: AsyncSession = Depends(get_rls_session), claims:
 @router.post("/admin/reports", response_model=ReportOut)
 async def create_report(payload: ReportCreate, session: AsyncSession = Depends(get_rls_session), claims: AuthClaims = Depends(get_current_claims)):
     service = ReportService(session)
-    item = await service.create(community_id=UUID(claims.community_id), reporter_id=UUID(claims.user_id), payload=payload)
+    try:
+        item = await service.create(community_id=UUID(claims.community_id), reporter_id=UUID(claims.user_id), payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid report data") from exc
+    response = await _serialize_report(item)
     await session.commit()
-    return await _serialize_report(item)
+    return response
 
 
 @router.patch("/admin/reports/{report_id}/status", response_model=ReportOut, dependencies=[Depends(require_admin)])
 async def update_report_status(report_id: UUID, payload: ReportStatusUpdate, session: AsyncSession = Depends(get_rls_session), claims: AuthClaims = Depends(get_current_claims)):
     service = ReportService(session)
     item = await service.update_status(community_id=UUID(claims.community_id), report_id=report_id, new_status=payload.status)
+    response = await _serialize_report(item)
     await session.commit()
-    return await _serialize_report(item)
+    return response
 
 
 @router.get("/me/emergency-profile", response_model=EmergencyProfileOut)
@@ -386,9 +476,19 @@ async def get_profile(session: AsyncSession = Depends(get_rls_session), claims: 
 @router.patch("/me/profile", response_model=ProfileOut)
 async def update_profile(payload: ProfileUpdateRequest, session: AsyncSession = Depends(get_rls_session), claims: AuthClaims = Depends(get_current_claims)):
     service = UserProfileService(session)
-    profile = await service.update_profile(UUID(claims.community_id), UUID(claims.user_id), payload)
-    profile["avatar_url"] = await _signed_media_url(profile.get("avatar_url"))
-    await session.commit()
+    try:
+        profile = await service.update_profile(UUID(claims.community_id), UUID(claims.user_id), payload)
+        profile["avatar_url"] = await _signed_media_url(profile.get("avatar_url"))
+        await session.commit()
+    except ValueError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Datos de perfil no válidos") from exc
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El correo o teléfono ya está registrado en esta comunidad",
+        ) from exc
     return ProfileOut(**profile)
 
 
@@ -429,7 +529,10 @@ async def mark_notification_read(notification_id: UUID, session: AsyncSession = 
     service = UserProfileService(session)
     item = await service.mark_notification_read(UUID(claims.community_id), UUID(claims.user_id), notification_id)
     if item is None:
-        return NotificationOut(id=notification_id, title="", message="", time="", is_read=False, source_type=None)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found",
+        )
     await session.commit()
     return NotificationOut(
         id=item.id,
@@ -445,9 +548,13 @@ async def mark_notification_read(notification_id: UUID, session: AsyncSession = 
 async def delete_notification(notification_id: UUID, session: AsyncSession = Depends(get_rls_session), claims: AuthClaims = Depends(get_current_claims)):
     service = UserProfileService(session)
     deleted = await service.delete_notification(UUID(claims.community_id), UUID(claims.user_id), notification_id)
-    if deleted:
-        await session.commit()
-    return {"success": deleted}
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found",
+        )
+    await session.commit()
+    return {"success": True}
 
 
 @router.get("/community/rules", response_model=list[RuleOut])
@@ -475,15 +582,17 @@ async def submit_faq_question(payload: FaqQuestionCreate, session: AsyncSession 
 @router.post("/admin/community/rules", response_model=RuleOut, dependencies=[Depends(require_admin)])
 async def create_rule(payload: CommunityRuleCreate, session: AsyncSession = Depends(get_rls_session), claims: AuthClaims = Depends(get_current_claims)):
     item = await UserProfileService(session).create_rule(UUID(claims.community_id), payload)
+    response = RuleOut(id=item.id, title=item.title, description=item.description)
     await session.commit()
-    return RuleOut(id=item.id, title=item.title, description=item.description)
+    return response
 
 
 @router.post("/admin/community/faqs", response_model=FaqOut, dependencies=[Depends(require_admin)])
 async def create_faq(payload: CommunityFaqCreate, session: AsyncSession = Depends(get_rls_session), claims: AuthClaims = Depends(get_current_claims)):
     item = await UserProfileService(session).create_faq(UUID(claims.community_id), payload)
+    response = FaqOut(id=item.id, question=item.question, answer=item.answer)
     await session.commit()
-    return FaqOut(id=item.id, question=item.question, answer=item.answer)
+    return response
 
 
 @router.get("/admin/community/faqs/questions", response_model=list[FaqQuestionOut], dependencies=[Depends(require_admin)])

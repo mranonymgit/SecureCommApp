@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../../core/services/community_realtime_service.dart';
 import '../../domain/entities/admin_dashboard_stats_entity.dart';
 import '../../domain/usecases/get_admin_dashboard_stats_usecase.dart';
 
@@ -13,7 +14,7 @@ class AdminDashboardController extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   int _selectedIndex = 0;
-  Timer? _refreshTimer;
+  StreamSubscription<CommunityChange>? _realtimeSubscription;
 
   AdminDashboardStatsEntity? get stats => _stats;
   bool get isLoading => _isLoading;
@@ -40,21 +41,30 @@ class AdminDashboardController extends ChangeNotifier {
     }
   }
 
+  void connectRealtime() {
+    _realtimeSubscription ??= CommunityRealtimeService.instance
+        .watchTables(const {'users', 'visits', 'reports', 'panic_alerts'})
+        .listen((_) => unawaited(refreshStatsSilently()));
+  }
+
+  Future<void> refreshStatsSilently() async {
+    try {
+      _stats = await getDashboardStatsUseCase();
+      _errorMessage = null;
+      notifyListeners();
+    } catch (_) {
+      // Keep the last valid metrics visible while the API reconnects.
+    }
+  }
+
   void setSelectedIndex(int index) {
     _selectedIndex = index;
     notifyListeners();
   }
 
-  void startRealtimeRefresh() {
-    _refreshTimer ??= Timer.periodic(
-      const Duration(seconds: 10),
-      (_) => loadStats(),
-    );
-  }
-
   @override
   void dispose() {
-    _refreshTimer?.cancel();
+    _realtimeSubscription?.cancel();
     super.dispose();
   }
 }

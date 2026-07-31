@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/presentation/app_toast.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/usecases/login_usecase.dart';
@@ -22,7 +23,8 @@ class _ForgotScreenState extends State<ForgotScreen> {
 
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _repeatPasswordController = TextEditingController();
+  final TextEditingController _repeatPasswordController =
+      TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureRepeatPassword = true;
@@ -31,7 +33,8 @@ class _ForgotScreenState extends State<ForgotScreen> {
   void initState() {
     super.initState();
     final repo = AuthRepositoryImpl();
-    _controller = widget.controller ??
+    _controller =
+        widget.controller ??
         AuthController(
           loginUseCase: LoginUseCase(repo),
           resetPasswordUseCase: ResetPasswordUseCase(repo),
@@ -49,7 +52,6 @@ class _ForgotScreenState extends State<ForgotScreen> {
 
   Future<void> _submitForm() async {
     FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     if (_formKey.currentState!.validate()) {
       final success = await _controller.resetPassword(
@@ -60,19 +62,12 @@ class _ForgotScreenState extends State<ForgotScreen> {
       if (!mounted) return;
 
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Solicitud enviada con éxito.'),
-            backgroundColor: Color(0xFF4CAF50),
-          ),
-        );
+        AppToast.success(context, 'Solicitud enviada con éxito.');
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_controller.errorMessage ?? 'Error al procesar solicitud.'),
-            backgroundColor: const Color(0xFFE53935),
-          ),
+        AppToast.error(
+          context,
+          _controller.errorMessage ?? 'Error al procesar solicitud.',
         );
       }
     }
@@ -93,7 +88,10 @@ class _ForgotScreenState extends State<ForgotScreen> {
         child: Center(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 500),
               child: Container(
@@ -120,8 +118,9 @@ class _ForgotScreenState extends State<ForgotScreen> {
                         label: 'Usuario',
                         hint: 'Ingrese su usuario',
                         prefixIcon: Icons.person_outline,
-                        validator: (val) =>
-                            val == null || val.trim().isEmpty ? 'Campo obligatorio' : null,
+                        validator: (val) => val == null || val.trim().isEmpty
+                            ? 'Campo obligatorio'
+                            : null,
                       ),
                       const SizedBox(height: 16.0),
                       AuthTextField(
@@ -131,16 +130,21 @@ class _ForgotScreenState extends State<ForgotScreen> {
                         prefixIcon: Icons.lock_outline,
                         obscureText: _obscurePassword,
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Campo obligatorio';
-                          if (val.length < 6) return 'Mínimo 6 caracteres';
+                          if (val == null || val.trim().isEmpty)
+                            return 'Campo obligatorio';
+                          if (val.length < 12) return 'Mínimo 12 caracteres';
                           return null;
                         },
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                             color: Colors.white54,
                           ),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16.0),
@@ -151,17 +155,23 @@ class _ForgotScreenState extends State<ForgotScreen> {
                         prefixIcon: Icons.lock_reset_outlined,
                         obscureText: _obscureRepeatPassword,
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty) return 'Campo obligatorio';
-                          if (val != _passwordController.text) return 'Las contraseñas no coinciden';
+                          if (val == null || val.trim().isEmpty)
+                            return 'Campo obligatorio';
+                          if (val != _passwordController.text)
+                            return 'Las contraseñas no coinciden';
                           return null;
                         },
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscureRepeatPassword ? Icons.visibility_off : Icons.visibility,
+                            _obscureRepeatPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                             color: Colors.white54,
                           ),
-                          onPressed: () =>
-                              setState(() => _obscureRepeatPassword = !_obscureRepeatPassword),
+                          onPressed: () => setState(
+                            () => _obscureRepeatPassword =
+                                !_obscureRepeatPassword,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24.0),
@@ -172,7 +182,9 @@ class _ForgotScreenState extends State<ForgotScreen> {
                             width: double.infinity,
                             height: 50,
                             child: ElevatedButton(
-                              onPressed: _controller.isLoading ? null : _submitForm,
+                              onPressed: _controller.isLoading
+                                  ? null
+                                  : _submitForm,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primaryDark,
                                 foregroundColor: Colors.white,
@@ -185,7 +197,10 @@ class _ForgotScreenState extends State<ForgotScreen> {
                                   ? const SizedBox(
                                       width: 20,
                                       height: 20,
-                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
                                     )
                                   : const Text(
                                       'Enviar solicitud',

@@ -1,5 +1,7 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../../../core/network/api_client.dart';
+import '../../../../../core/network/api_error_message.dart';
+import '../../../../../core/presentation/app_toast.dart';
 import '../../../data/repositories/residents_repository_impl.dart';
 import '../../../domain/entities/resident_entity.dart';
 import '../../../domain/usecases/add_resident_usecase.dart';
@@ -18,7 +20,6 @@ class ResidentsView extends StatefulWidget {
 
 class _ResidentsViewState extends State<ResidentsView> {
   late final ResidentsController _controller;
-  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -33,15 +34,11 @@ class _ResidentsViewState extends State<ResidentsView> {
         );
 
     _controller.loadResidents();
-    _refreshTimer = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) => _controller.loadResidents(),
-    );
+    _controller.connectRealtime();
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
@@ -115,10 +112,35 @@ class _ResidentsViewState extends State<ResidentsView> {
               _buildDetailRow('Contacto de Emergencia:', r.emergencyContact),
               _buildDetailRow('Correo Electrónico:', r.email),
               _buildDetailRow('Teléfono Principal:', r.phone),
+              _buildDetailRow(
+                'Estado de la cuenta:',
+                r.status == 'active' ? 'Activo' : 'Suspendido',
+              ),
             ],
           ),
         ),
         actions: [
+          TextButton(
+            onPressed: () => _updateResidentStatus(r, true),
+            child: const Text(
+              'Activar',
+              style: TextStyle(color: Colors.greenAccent),
+            ),
+          ),
+          TextButton(
+            onPressed: () => _updateResidentStatus(r, false),
+            child: const Text(
+              'Desactivar',
+              style: TextStyle(color: Colors.orangeAccent),
+            ),
+          ),
+          TextButton(
+            onPressed: () => _deleteResident(r),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2A2A2A),
@@ -131,7 +153,111 @@ class _ResidentsViewState extends State<ResidentsView> {
     );
   }
 
-  void _showAddResidentDialog() {
+  Future<void> _updateResidentStatus(
+    ResidentEntity resident,
+    bool active,
+  ) async {
+    try {
+      await ApiClient().patchJson(
+        '/api/admin/residents/${resident.id}/status',
+        {'active': active},
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+      await _controller.refreshResidentsSilently();
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        active ? 'Residente activado.' : 'Residente desactivado.',
+        type: AppToastType.success,
+      );
+    } catch (error) {
+      final persisted = await _residentStatusPersisted(resident.id, active);
+      if (persisted) {
+        if (!mounted) return;
+        Navigator.pop(context);
+        await _controller.refreshResidentsSilently();
+        if (!mounted) return;
+        AppToast.success(
+          context,
+          active ? 'Residente activado.' : 'Residente desactivado.',
+        );
+        return;
+      }
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        ApiErrorMessage.from(
+          error,
+          fallback: 'No fue posible actualizar al residente.',
+        ),
+        type: AppToastType.error,
+      );
+    }
+  }
+
+  Future<void> _deleteResident(ResidentEntity resident) async {
+    try {
+      await ApiClient().deleteJson('/api/admin/residents/${resident.id}');
+      if (!mounted) return;
+      Navigator.pop(context);
+      await _controller.refreshResidentsSilently();
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        'Residente eliminado de forma segura.',
+        type: AppToastType.success,
+      );
+    } catch (error) {
+      final persisted = await _residentWasDeleted(resident.id);
+      if (persisted) {
+        if (!mounted) return;
+        Navigator.pop(context);
+        await _controller.refreshResidentsSilently();
+        if (!mounted) return;
+        AppToast.success(context, 'Residente eliminado de forma segura.');
+        return;
+      }
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        ApiErrorMessage.from(
+          error,
+          fallback: 'No fue posible eliminar al residente.',
+        ),
+        type: AppToastType.error,
+      );
+    }
+  }
+
+  Future<List<dynamic>?> _canonicalResidents() async {
+    try {
+      return await ApiClient().getList('/api/admin/residents');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> _residentStatusPersisted(String id, bool active) async {
+    final residents = await _canonicalResidents();
+    if (residents == null) return false;
+    final expected = active ? 'active' : 'suspended';
+    return residents.any(
+      (raw) =>
+          raw is Map &&
+          raw['id'].toString() == id &&
+          raw['status'].toString() == expected,
+    );
+  }
+
+  Future<bool> _residentWasDeleted(String id) async {
+    final residents = await _canonicalResidents();
+    if (residents == null) return false;
+    return !residents.any((raw) => raw is Map && raw['id'].toString() == id);
+  }
+
+  Future<void> _showAddResidentDialog() async {
+    final pageContext = context;
     final nameCtrl = TextEditingController();
     final unitCtrl = TextEditingController();
     final bloodCtrl = TextEditingController();
@@ -142,115 +268,146 @@ class _ResidentsViewState extends State<ResidentsView> {
     final phoneCtrl = TextEditingController();
     final passwordCtrl = TextEditingController();
 
-    showDialog(
+    var saving = false;
+    await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text(
-          'Alta de Nuevo Residente',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionTitle('Credenciales de acceso'),
-              const SizedBox(height: 8),
-              const Text(
-                'El identificador lo genera la base de datos. Define una contraseña temporal segura para el residente.',
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 12,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildSectionTitle('Datos Generales'),
-              _buildTextField(nameCtrl, 'Nombre Completo'),
-              _buildTextField(unitCtrl, 'Casa / Torre / Departamento'),
-              _buildTextField(emailCtrl, 'Correo Electrónico'),
-              _buildTextField(phoneCtrl, 'Teléfono'),
-              _buildTextField(
-                passwordCtrl,
-                'Contraseña temporal (mínimo 12 caracteres)',
-                obscureText: true,
-              ),
-              const SizedBox(height: 16),
-              _buildSectionTitle('Ficha Médica y Emergencia'),
-              _buildTextField(bloodCtrl, 'Tipo de Sangre (ej. O+, A-)'),
-              _buildTextField(illnessesCtrl, 'Enfermedades / Padecimientos'),
-              _buildTextField(allergiesCtrl, 'Alergias a Medicamentos'),
-              _buildTextField(
-                emergencyCtrl,
-                'Contacto de Emergencia (Nombre y Tel)',
-              ),
-            ],
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: const Text(
+            'Alta de Nuevo Residente',
+            style: TextStyle(color: Colors.white),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-            },
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(color: Colors.white54),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-            onPressed: () async {
-              if (nameCtrl.text.isNotEmpty && passwordCtrl.text.length >= 12) {
-                final created = await _controller.createResident(
-                  name: nameCtrl.text.trim(),
-                  unit: unitCtrl.text.trim(),
-                  initialPassword: passwordCtrl.text,
-                  bloodType: bloodCtrl.text.trim(),
-                  illnesses: illnessesCtrl.text.trim(),
-                  allergies: allergiesCtrl.text.trim(),
-                  emergencyContact: emergencyCtrl.text.trim(),
-                  email: emailCtrl.text.trim(),
-                  phone: phoneCtrl.text.trim(),
-                );
-                if (!mounted) return;
-                if (created) {
-                  Navigator.pop(dialogContext);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Residente creado y habilitado para iniciar sesión.',
-                      ),
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        _controller.errorMessage ??
-                            'No fue posible crear el residente.',
-                      ),
-                    ),
-                  );
-                }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Nombre y contraseña de al menos 12 caracteres son obligatorios.',
-                    ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionTitle('Credenciales de acceso'),
+                const SizedBox(height: 8),
+                const Text(
+                  'El identificador lo genera la base de datos. Define una contraseña temporal segura para el residente.',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                    height: 1.4,
                   ),
-                );
-              }
-            },
-            child: const Text(
-              'Guardar Residente',
-              style: TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 16),
+                _buildSectionTitle('Datos Generales'),
+                _buildTextField(nameCtrl, 'Nombre Completo'),
+                _buildTextField(unitCtrl, 'Casa / Torre / Departamento'),
+                _buildTextField(emailCtrl, 'Correo Electrónico'),
+                _buildTextField(phoneCtrl, 'Teléfono'),
+                _buildTextField(
+                  passwordCtrl,
+                  'Contraseña temporal (mínimo 12 caracteres)',
+                  obscureText: true,
+                ),
+                const SizedBox(height: 16),
+                _buildSectionTitle('Ficha Médica y Emergencia'),
+                _buildTextField(bloodCtrl, 'Tipo de Sangre (ej. O+, A-)'),
+                _buildTextField(illnessesCtrl, 'Enfermedades / Padecimientos'),
+                _buildTextField(allergiesCtrl, 'Alergias a Medicamentos'),
+                _buildTextField(
+                  emergencyCtrl,
+                  'Contacto de Emergencia (Nombre y Tel)',
+                ),
+              ],
             ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(dialogContext),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+              ),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final email = emailCtrl.text.trim();
+                      final validEmail = RegExp(
+                        r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+                      ).hasMatch(email);
+                      if (nameCtrl.text.trim().isNotEmpty &&
+                          unitCtrl.text.trim().isNotEmpty &&
+                          phoneCtrl.text.trim().isNotEmpty &&
+                          validEmail &&
+                          passwordCtrl.text.length >= 12) {
+                        setDialogState(() => saving = true);
+                        final created = await _controller.createResident(
+                          name: nameCtrl.text.trim(),
+                          unit: unitCtrl.text.trim(),
+                          initialPassword: passwordCtrl.text,
+                          bloodType: bloodCtrl.text.trim(),
+                          illnesses: illnessesCtrl.text.trim(),
+                          allergies: allergiesCtrl.text.trim(),
+                          emergencyContact: emergencyCtrl.text.trim(),
+                          email: email,
+                          phone: phoneCtrl.text.trim(),
+                        );
+                        if (!pageContext.mounted || !dialogContext.mounted) {
+                          return;
+                        }
+                        if (created) {
+                          Navigator.pop(dialogContext);
+                          AppToast.show(
+                            pageContext,
+                            'Residente creado y habilitado para iniciar sesión.',
+                            type: AppToastType.success,
+                          );
+                        } else {
+                          setDialogState(() => saving = false);
+                          AppToast.show(
+                            pageContext,
+                            _controller.actionErrorMessage ??
+                                'No fue posible crear el residente.',
+                            type: AppToastType.error,
+                          );
+                        }
+                      } else {
+                        AppToast.show(
+                          context,
+                          validEmail
+                              ? 'Completa nombre, unidad, teléfono y una contraseña de al menos 12 caracteres.'
+                              : 'Ingresa un correo electrónico válido.',
+                          type: AppToastType.error,
+                        );
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Guardar Residente',
+                      style: TextStyle(color: Colors.white),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
+    nameCtrl.dispose();
+    unitCtrl.dispose();
+    bloodCtrl.dispose();
+    illnessesCtrl.dispose();
+    allergiesCtrl.dispose();
+    emergencyCtrl.dispose();
+    emailCtrl.dispose();
+    phoneCtrl.dispose();
+    passwordCtrl.dispose();
   }
 
   Widget _buildSectionTitle(String title) {

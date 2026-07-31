@@ -4,9 +4,11 @@ import '../../domain/entities/app_theme_option.dart';
 import '../../domain/entities/user_preferences.dart';
 
 class AparienciaController extends ValueNotifier<AppThemeMode> {
-  AparienciaController([SettingsRepositoryImpl? repository, AppThemeMode initialMode = AppThemeMode.light])
-      : _repository = repository ?? SettingsRepositoryImpl(),
-        super(initialMode);
+  AparienciaController([
+    SettingsRepositoryImpl? repository,
+    AppThemeMode initialMode = AppThemeMode.light,
+  ]) : _repository = repository ?? SettingsRepositoryImpl(),
+       super(initialMode);
 
   final SettingsRepositoryImpl _repository;
   UserPreferences? preferences;
@@ -26,7 +28,12 @@ class AparienciaController extends ValueNotifier<AppThemeMode> {
   Future<void> changeTheme(AppThemeMode mode) async {
     value = mode;
     preferences = await _repository.updatePreferences(
-      (preferences ?? const UserPreferences(themeMode: 'default', notificationsEnabled: true, language: 'es'))
+      (preferences ??
+              const UserPreferences(
+                themeMode: 'default',
+                notificationsEnabled: true,
+                language: 'es',
+              ))
           .copyWith(themeMode: mode.name),
     );
   }

@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import '../../../../core/services/community_realtime_service.dart';
+import '../../../../core/network/api_error_message.dart';
 import '../../domain/entities/resident_entity.dart';
 import '../../domain/repositories/residents_repository.dart';
 import '../../domain/usecases/add_resident_usecase.dart';
@@ -18,11 +22,14 @@ class ResidentsController extends ChangeNotifier {
   List<ResidentEntity> _residents = [];
   bool _isLoading = false;
   String? _errorMessage;
+  String? _actionErrorMessage;
+  StreamSubscription<CommunityChange>? _realtimeSubscription;
 
   List<ResidentEntity> get residents => _residents;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get hasError => _errorMessage != null;
+  String? get actionErrorMessage => _actionErrorMessage;
 
   Future<void> loadResidents() async {
     _isLoading = true;
@@ -38,6 +45,22 @@ class ResidentsController extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  void connectRealtime() {
+    _realtimeSubscription ??= CommunityRealtimeService.instance
+        .watchTables(const {'users', 'resident_profiles'})
+        .listen((_) => unawaited(refreshResidentsSilently()));
+  }
+
+  Future<void> refreshResidentsSilently() async {
+    try {
+      _residents = await getResidentsUseCase();
+      _errorMessage = null;
+      notifyListeners();
+    } catch (_) {
+      // Preserve the current list while Render reconnects.
     }
   }
 
@@ -58,25 +81,50 @@ class ResidentsController extends ChangeNotifier {
       name: name,
       unit: unit,
       bloodType: bloodType,
-      illnesses: illnesses.isEmpty ? 'Ninguna' : illnesses,
-      allergies: allergies.isEmpty ? 'Ninguna' : allergies,
+      illnesses: illnesses,
+      allergies: allergies,
       emergencyContact: emergencyContact,
       email: email,
       phone: phone,
       avatarUrl: '',
+      status: 'active',
     );
 
     try {
       final added = await addResidentUseCase(newResident);
-      _residents.insert(0, added);
-      _errorMessage = null;
+      _residents = [
+        added,
+        ..._residents.where((resident) => resident.id != added.id),
+      ];
+      _actionErrorMessage = null;
       notifyListeners();
       return true;
-    } catch (e) {
-      _errorMessage = 'No fue posible crear el residente.';
-      debugPrint('Error al agregar residente: $e');
+    } catch (error) {
+      try {
+        final canonical = await getResidentsUseCase();
+        final saved = canonical.any(
+          (item) => item.email.toLowerCase() == email.toLowerCase(),
+        );
+        if (saved) {
+          _residents = canonical;
+          _actionErrorMessage = null;
+          notifyListeners();
+          return true;
+        }
+      } catch (_) {}
+      _actionErrorMessage = ApiErrorMessage.from(
+        error,
+        fallback: 'No fue posible crear el residente.',
+      );
+      debugPrint('Error al agregar residente: $error');
       notifyListeners();
       return false;
     }
+  }
+
+  @override
+  void dispose() {
+    _realtimeSubscription?.cancel();
+    super.dispose();
   }
 }

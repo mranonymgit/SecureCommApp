@@ -4,6 +4,7 @@ class NotificationItem {
   final String message;
   final String time;
   final bool isRead;
+  final String? sourceType;
 
   const NotificationItem({
     required this.id,
@@ -11,6 +12,7 @@ class NotificationItem {
     required this.message,
     required this.time,
     this.isRead = false,
+    this.sourceType,
   });
 
   NotificationItem copyWith({
@@ -19,6 +21,7 @@ class NotificationItem {
     String? message,
     String? time,
     bool? isRead,
+    String? sourceType,
   }) {
     return NotificationItem(
       id: id ?? this.id,
@@ -26,6 +29,7 @@ class NotificationItem {
       message: message ?? this.message,
       time: time ?? this.time,
       isRead: isRead ?? this.isRead,
+      sourceType: sourceType ?? this.sourceType,
     );
   }
 }

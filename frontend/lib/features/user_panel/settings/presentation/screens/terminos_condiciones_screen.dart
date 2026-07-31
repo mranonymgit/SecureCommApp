@@ -24,13 +24,11 @@ class TerminosCondicionesScreen extends StatelessWidget {
               child: TabBar(
                 indicatorColor: theme.colorScheme.primary,
                 labelColor: theme.colorScheme.primary,
-                unselectedLabelColor:
-                    theme.colorScheme.onSurface.withOpacity(0.7),
+                unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 
+                  0.7,
+                ),
                 tabs: const [
-                  Tab(
-                    icon: Icon(Icons.info_outline),
-                    text: 'Acerca de SCA',
-                  ),
+                  Tab(icon: Icon(Icons.info_outline), text: 'Acerca de SCA'),
                   Tab(
                     icon: Icon(Icons.description_outlined),
                     text: 'Términos y Datos',
@@ -39,12 +37,7 @@ class TerminosCondicionesScreen extends StatelessWidget {
               ),
             ),
             const Expanded(
-              child: TabBarView(
-                children: [
-                  AcercaDeTab(),
-                  TerminosYDatosTab(),
-                ],
-              ),
+              child: TabBarView(children: [AcercaDeTab(), TerminosYDatosTab()]),
             ),
           ],
         ),

@@ -5,8 +5,8 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .core.security import create_access_token, hash_password, verify_password
-from .models import UserRole
+from .core.security import create_access_token, create_realtime_token, hash_password, verify_password
+from .models import AccountStatus, UserRole
 from .repositories import (
     AccessRepository,
     AnnouncementRepository,
@@ -25,7 +25,12 @@ class AuthService:
 
     async def login(self, community_slug: str, email: str, password: str):
         user = await self.repo.get_user_for_login(community_slug, email)
-        if user is None or not user.password_hash or not verify_password(password, user.password_hash):
+        if (
+            user is None
+            or user.status != AccountStatus.active
+            or not user.password_hash
+            or not verify_password(password, user.password_hash)
+        ):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
         token = create_access_token(
@@ -34,13 +39,21 @@ class AuthService:
             role=user.role.value if isinstance(user.role, UserRole) else str(user.role),
             email=user.email,
         )
-        return user, token
+        realtime_token = create_realtime_token(
+            subject=str(user.id),
+            community_id=str(user.community_id),
+            user_role=user.role.value if isinstance(user.role, UserRole) else str(user.role),
+        )
+        return user, token, realtime_token
 
     async def change_password(self, community_id: UUID, user_id: UUID, new_password: str) -> bool:
         return await self.repo.update_password(community_id, user_id, hash_password(new_password))
 
     async def request_password_change(self, community_id: UUID, user_id: UUID, new_password: str):
         return await self.repo.create_password_change_request(community_id, user_id, hash_password(new_password))
+
+    async def request_password_change_by_email(self, community_slug: str, email: str, new_password: str) -> bool:
+        return await self.repo.request_password_change_by_email(community_slug, email, hash_password(new_password))
 
     async def list_password_change_requests(self, community_id: UUID):
         return await self.repo.list_password_change_requests(community_id)
@@ -82,6 +95,12 @@ class ResidentService:
             emergency_contact_phone=payload.emergency_contact_phone,
             password=payload.initial_password,
         )
+
+    async def set_active(self, community_id: UUID, user_id: UUID, active: bool):
+        return await self.repo.set_active(community_id, user_id, active)
+
+    async def soft_delete(self, community_id: UUID, user_id: UUID) -> bool:
+        return await self.repo.soft_delete(community_id, user_id)
 
 
 class AccessService:

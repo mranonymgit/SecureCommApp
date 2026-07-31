@@ -4,7 +4,8 @@ import '../../domain/repositories/home_repository.dart';
 import '../models/news_post_model.dart';
 
 class HomeRepositoryImpl implements HomeRepository {
-  HomeRepositoryImpl({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
+  HomeRepositoryImpl({ApiClient? apiClient})
+    : _apiClient = apiClient ?? ApiClient();
 
   final ApiClient _apiClient;
 
@@ -18,9 +19,18 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   @override
-  Future<void> reactToNews(String postId, String? reaction) async {
-    await _apiClient.postJson('/api/admin/announcements/$postId/reaction', {
-      'reaction': reaction,
-    });
+  Future<NewsReactionResult> reactToNews(
+    String postId,
+    String? reaction,
+  ) async {
+    final data = await _apiClient.postJson(
+      '/api/admin/announcements/$postId/reaction',
+      {'reaction': reaction},
+    );
+    return NewsReactionResult(
+      likes: (data['likes'] as num?)?.toInt() ?? 0,
+      dislikes: (data['dislikes'] as num?)?.toInt() ?? 0,
+      userReaction: data['user_reaction']?.toString(),
+    );
   }
 }

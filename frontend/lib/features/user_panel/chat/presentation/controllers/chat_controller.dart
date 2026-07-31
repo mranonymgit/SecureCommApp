@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../../../../core/network/api_client.dart';
+import '../../../../../core/network/api_error_message.dart';
+import '../../../../../core/services/chat_audio_recorder.dart';
+import '../../../../../core/services/chat_realtime_service.dart';
 import '../../domain/entities/mensaje_chat.dart';
 import '../../domain/usecases/get_mensajes_usecase.dart';
 import '../../domain/usecases/enviar_mensaje_usecase.dart';
@@ -15,7 +19,9 @@ class ChatController extends ChangeNotifier {
     required this.getMensajesUseCase,
     required this.enviarMensajeUseCase,
     required this.obtenerResumenIAUseCase,
-  });
+  }) {
+    textController.addListener(_broadcastTyping);
+  }
 
   final TextEditingController textController = TextEditingController();
   final ScrollController scrollController = ScrollController();
@@ -23,6 +29,24 @@ class ChatController extends ChangeNotifier {
   List<MensajeChat> mensajes = [];
   bool isLoading = false;
   String? errorMessage;
+  String? actionErrorMessage;
+  final ChatAudioRecorder _audioRecorder = ChatAudioRecorder();
+  final ChatRealtimeService _realtime = ChatRealtimeService();
+  bool isRecording = false;
+  bool isSendingAudio = false;
+  Duration recordingDuration = Duration.zero;
+  bool vecinoEstaEscribiendo = false;
+  Timer? _typingDebounce;
+  Timer? _recordingTimer;
+
+  String get recordingTimeLabel {
+    final minutes = recordingDuration.inMinutes.toString().padLeft(2, '0');
+    final seconds = recordingDuration.inSeconds
+        .remainder(60)
+        .toString()
+        .padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
 
   bool estaBuscando = false;
   String filtroTexto = '';
@@ -42,7 +66,40 @@ class ChatController extends ChangeNotifier {
     } finally {
       isLoading = false;
       notifyListeners();
+      hacerScrollAlFinal();
     }
+  }
+
+  Future<void> actualizarMensajesSilenciosamente() async {
+    try {
+      mensajes = List<MensajeChat>.from(await getMensajesUseCase());
+      errorMessage = null;
+      notifyListeners();
+      hacerScrollAlFinal();
+    } catch (error) {
+      debugPrint('Error al sincronizar mensajes: $error');
+    }
+  }
+
+  Future<void> conectarTiempoReal() => _realtime.subscribe(
+    actualizarMensajesSilenciosamente,
+    onPeerTyping: (isTyping) {
+      vecinoEstaEscribiendo = isTyping;
+      notifyListeners();
+    },
+  );
+
+  void _broadcastTyping() {
+    if (textController.text.trim().isEmpty) {
+      _typingDebounce?.cancel();
+      _realtime.setTyping(false);
+      return;
+    }
+    _realtime.setTyping(true);
+    _typingDebounce?.cancel();
+    _typingDebounce = Timer(const Duration(milliseconds: 900), () {
+      _realtime.setTyping(false);
+    });
   }
 
   void toggleBusqueda(bool valor) {
@@ -83,9 +140,9 @@ class ChatController extends ChangeNotifier {
     }).toList();
   }
 
-  Future<void> enviarTexto() async {
+  Future<String?> enviarTexto() async {
     final texto = textController.text.trim();
-    if (texto.isEmpty) return;
+    if (texto.isEmpty) return null;
 
     final nuevo = MensajeChat(
       id: '',
@@ -103,18 +160,32 @@ class ChatController extends ChangeNotifier {
       textController.clear();
       // Los repositorios pueden devolver listas de solo lectura. Reemplazar la
       // colección evita mutarlas y hace visible el mensaje confirmado por API.
-      mensajes = [...mensajes, guardado];
-      errorMessage = null;
+      mensajes =
+          [...mensajes.where((mensaje) => mensaje.id != guardado.id), guardado]
+            ..sort(
+              (primerMensaje, segundoMensaje) =>
+                  primerMensaje.fechaHora.compareTo(segundoMensaje.fechaHora),
+            );
+      actionErrorMessage = null;
       notifyListeners();
       hacerScrollAlFinal();
+      return null;
     } catch (error) {
-      errorMessage = 'No fue posible enviar el mensaje.';
+      actionErrorMessage = ApiErrorMessage.from(
+        error,
+        fallback: 'No fue posible enviar el mensaje.',
+      );
       debugPrint('Error al enviar mensaje: $error');
       notifyListeners();
+      return actionErrorMessage;
     }
   }
 
-  Future<bool> enviarAudio(Uint8List bytes, String filename) async {
+  Future<bool> enviarAudio(
+    Uint8List bytes,
+    String filename, {
+    Duration? duration,
+  }) async {
     try {
       final extension = filename.toLowerCase();
       final contentType = extension.endsWith('.m4a')
@@ -132,6 +203,10 @@ class ChatController extends ChangeNotifier {
         filename: filename,
         contentType: contentType,
       );
+      final objectPath = (upload['object_path'] ?? '').toString();
+      if (objectPath.isEmpty) {
+        throw StateError('Supabase no devolvió la referencia del audio.');
+      }
       final saved = await enviarMensajeUseCase(
         MensajeChat(
           id: '',
@@ -140,21 +215,86 @@ class ChatController extends ChangeNotifier {
           avatarUrl: '',
           tipoUsuario: TipoUsuario.usuario,
           texto: 'Audio',
-          audioUrl: (upload['object_path'] ?? '').toString(),
+          audioUrl: objectPath,
+          duracionAudio: duration,
           fechaHora: DateTime.now(),
           esMio: true,
         ),
       );
-      mensajes = [...mensajes, saved];
-      errorMessage = null;
+      mensajes = [...mensajes.where((mensaje) => mensaje.id != saved.id), saved]
+        ..sort(
+          (primerMensaje, segundoMensaje) =>
+              primerMensaje.fechaHora.compareTo(segundoMensaje.fechaHora),
+        );
+      actionErrorMessage = null;
       notifyListeners();
       return true;
     } catch (error) {
-      errorMessage = 'No fue posible enviar el audio.';
+      actionErrorMessage = ApiErrorMessage.from(
+        error,
+        fallback: 'No fue posible enviar el audio.',
+      );
       debugPrint('Error al enviar audio: $error');
       notifyListeners();
       return false;
     }
+  }
+
+  Future<String?> toggleAudioRecording() async {
+    try {
+      if (!isRecording) {
+        await _audioRecorder.start();
+        isRecording = true;
+        recordingDuration = Duration.zero;
+        actionErrorMessage = null;
+        _recordingTimer?.cancel();
+        _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          recordingDuration += const Duration(seconds: 1);
+          notifyListeners();
+        });
+        notifyListeners();
+        return null;
+      }
+      final recording = await _audioRecorder.stop();
+      _recordingTimer?.cancel();
+      _recordingTimer = null;
+      isRecording = false;
+      isSendingAudio = recording != null;
+      notifyListeners();
+      if (recording != null) {
+        final sent = await enviarAudio(
+          recording.bytes,
+          'mensaje-${DateTime.now().millisecondsSinceEpoch}.wav',
+          duration: recording.duration,
+        );
+        isSendingAudio = false;
+        notifyListeners();
+        return sent ? null : actionErrorMessage;
+      }
+      return 'No se capturó audio. Intenta grabarlo nuevamente.';
+    } catch (error) {
+      _recordingTimer?.cancel();
+      _recordingTimer = null;
+      isRecording = false;
+      isSendingAudio = false;
+      actionErrorMessage = ApiErrorMessage.from(
+        error,
+        fallback: 'No fue posible grabar el audio.',
+      );
+      notifyListeners();
+      return actionErrorMessage;
+    }
+  }
+
+  @override
+  void dispose() {
+    _audioRecorder.dispose();
+    _realtime.dispose();
+    _typingDebounce?.cancel();
+    _recordingTimer?.cancel();
+    textController.dispose();
+    scrollController.dispose();
+    super.dispose();
   }
 
   void hacerScrollAlFinal() {
@@ -171,12 +311,5 @@ class ChatController extends ChangeNotifier {
 
   Future<String> obtenerResumen() async {
     return await obtenerResumenIAUseCase();
-  }
-
-  @override
-  void dispose() {
-    textController.dispose();
-    scrollController.dispose();
-    super.dispose();
   }
 }

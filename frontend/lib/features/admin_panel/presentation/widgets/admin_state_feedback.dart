@@ -3,18 +3,13 @@ import 'package:flutter/material.dart';
 class AdminLoadingState extends StatelessWidget {
   final Color color;
 
-  const AdminLoadingState({
-    super.key,
-    this.color = Colors.blueAccent,
-  });
+  const AdminLoadingState({super.key, this.color = Colors.blueAccent});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Center(
-        child: CircularProgressIndicator(color: color),
-      ),
+      child: Center(child: CircularProgressIndicator(color: color)),
     );
   }
 }
@@ -72,7 +67,9 @@ class AdminEmptyState extends StatelessWidget {
                 if (actionLabel != null && onAction != null) ...[
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                    ),
                     onPressed: onAction,
                     child: Text(
                       actionLabel!,
@@ -93,11 +90,7 @@ class AdminErrorState extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
 
-  const AdminErrorState({
-    super.key,
-    required this.message,
-    this.onRetry,
-  });
+  const AdminErrorState({super.key, required this.message, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -111,12 +104,18 @@ class AdminErrorState extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFF1E1E1E),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
+              border: Border.all(
+                color: Colors.redAccent.withValues(alpha: 0.35),
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+                const Icon(
+                  Icons.error_outline,
+                  color: Colors.redAccent,
+                  size: 40,
+                ),
                 const SizedBox(height: 12),
                 const Text(
                   'No se pudo cargar la información',
@@ -136,7 +135,9 @@ class AdminErrorState extends StatelessWidget {
                 if (onRetry != null) ...[
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                    ),
                     onPressed: onRetry,
                     child: const Text(
                       'Reintentar',

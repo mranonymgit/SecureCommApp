@@ -1,13 +1,12 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../data/repositories/chat_repository_impl.dart';
 import '../../../domain/usecases/get_chat_ai_summary_usecase.dart';
 import '../../../domain/usecases/get_chat_messages_usecase.dart';
 import '../../../domain/usecases/send_chat_message_usecase.dart';
 import '../../controllers/chat_controller.dart';
 import '../../widgets/admin_state_feedback.dart';
+import '../../../../user_panel/chat/presentation/widgets/reproductor_audio_widget.dart';
+import '../../../../../core/presentation/app_toast.dart';
 
 class FullChatScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -24,7 +23,7 @@ class _FullChatScreenState extends State<FullChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  Timer? _refreshTimer;
+  int _messageCount = 0;
 
   @override
   void initState() {
@@ -38,58 +37,64 @@ class _FullChatScreenState extends State<FullChatScreen> {
           getChatAISummaryUseCase: GetChatAISummaryUseCase(repo),
         );
 
-    _controller.loadMessages();
-    _refreshTimer = Timer.periodic(
-      const Duration(seconds: 8),
-      (_) => _controller.loadMessages(),
-    );
+    _controller.addListener(_onMessagesChanged);
+    _controller.loadMessages().then((_) => _scrollToLastMessage());
+    _controller.connectRealtime();
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_onMessagesChanged);
     _messageController.dispose();
     _searchController.dispose();
     _scrollController.dispose();
-    _refreshTimer?.cancel();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
+  }
+
+  void _onMessagesChanged() {
+    if (_controller.messages.length == _messageCount) return;
+    _messageCount = _controller.messages.length;
+    _scrollToLastMessage();
+  }
+
+  void _scrollToLastMessage() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
   }
 
   Future<void> _handleSendMessage() async {
     final text = _messageController.text;
     if (text.trim().isNotEmpty) {
       final enviado = await _controller.sendMessage(text: text);
-      if (!enviado) return;
-      _messageController.clear();
-      if (!_scrollController.hasClients) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
+      if (!enviado) {
+        if (mounted) {
+          AppToast.error(
+            context,
+            _controller.actionErrorMessage ??
+                'No fue posible enviar el mensaje.',
           );
         }
-      });
+        return;
+      }
+      _messageController.clear();
+      if (!_scrollController.hasClients) return;
+      _scrollToLastMessage();
     }
   }
 
-  Future<void> _adjuntarAudio() async {
-    final selected = await FilePicker.pickFiles(
-      type: FileType.audio,
-      withData: true,
-    );
-    final file = selected?.files.single;
-    if (file == null || file.bytes == null) return;
-    final ok = await _controller.sendAudio(file.bytes!, file.name);
-    if (!mounted || ok) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _controller.errorMessage ?? 'No se pudo enviar el audio.',
-        ),
-      ),
-    );
+  Future<void> _handleAudioRecording() async {
+    final error = await _controller.toggleAudioRecording();
+    if (error != null && mounted) {
+      AppToast.show(context, error, type: AppToastType.error);
+    }
   }
 
   void _showAISummary() async {
@@ -159,12 +164,7 @@ class _FullChatScreenState extends State<FullChatScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No fue posible generar el resumen IA.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      AppToast.error(context, 'No fue posible generar el resumen IA.');
     }
   }
 
@@ -386,37 +386,19 @@ class _FullChatScreenState extends State<FullChatScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 6),
-                                    if (isAudio)
-                                      InkWell(
-                                        onTap: msg.audioUrl == null
-                                            ? null
-                                            : () => launchUrl(
-                                                Uri.parse(msg.audioUrl!),
-                                                mode: LaunchMode
-                                                    .externalApplication,
-                                              ),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.play_arrow,
-                                              color: Colors.white,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Container(
-                                                height: 4,
-                                                color: Colors.white38,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              msg.audioDuration ?? '0:00',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
+                                    if (isAudio && msg.audioUrl != null)
+                                      SizedBox(
+                                        width: 230,
+                                        child: ReproductorAudioWidget(
+                                          audioUrl: msg.audioUrl!,
+                                          esMio: isAdmin,
+                                          duracion: Duration(
+                                            seconds:
+                                                int.tryParse(
+                                                  msg.audioDuration ?? '',
+                                                ) ??
+                                                0,
+                                          ),
                                         ),
                                       )
                                     else
@@ -459,36 +441,87 @@ class _FullChatScreenState extends State<FullChatScreen> {
               return Container(
                 padding: const EdgeInsets.all(12),
                 color: const Color(0xFF1E1E1E),
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: 'Escribe un mensaje...',
-                          hintStyle: const TextStyle(color: Colors.white38),
-                          filled: true,
-                          fillColor: const Color(0xFF2A2A2A),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide.none,
+                    if (_controller.residentIsTyping)
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: EdgeInsets.only(left: 8, bottom: 6),
+                          child: Text(
+                            'Un residente está escribiendo...',
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.audio_file,
-                        color: Colors.greenAccent,
-                      ),
-                      tooltip: 'Adjuntar audio',
-                      onPressed: _adjuntarAudio,
-                    ),
-                    IconButton(
-                      onPressed: _handleSendMessage,
-                      icon: const Icon(Icons.send, color: Colors.greenAccent),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            enabled:
+                                !_controller.isRecording &&
+                                !_controller.isSendingAudio,
+                            onChanged: _controller.notifyTyping,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: _controller.isRecording
+                                  ? 'Grabando ${_controller.recordingTimeLabel}'
+                                  : _controller.isSendingAudio
+                                  ? 'Enviando audio...'
+                                  : 'Escribe un mensaje...',
+                              hintStyle: const TextStyle(color: Colors.white38),
+                              filled: true,
+                              fillColor: const Color(0xFF2A2A2A),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: _controller.isSendingAudio
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.greenAccent,
+                                  ),
+                                )
+                              : Icon(
+                                  _controller.isRecording
+                                      ? Icons.stop_circle
+                                      : Icons.mic,
+                                  color: _controller.isRecording
+                                      ? Colors.redAccent
+                                      : Colors.greenAccent,
+                                ),
+                          tooltip: _controller.isRecording
+                              ? 'Enviar audio'
+                              : 'Grabar audio',
+                          onPressed: _controller.isSendingAudio
+                              ? null
+                              : _handleAudioRecording,
+                        ),
+                        IconButton(
+                          onPressed:
+                              _controller.isRecording ||
+                                  _controller.isSendingAudio
+                              ? null
+                              : _handleSendMessage,
+                          icon: const Icon(
+                            Icons.send,
+                            color: Colors.greenAccent,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

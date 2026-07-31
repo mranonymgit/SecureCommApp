@@ -3,7 +3,7 @@ import 'package:file_picker/file_picker.dart';
 mixin MediaPickerMixin {
   Future<PlatformFile?> pickMedia() async {
     try {
-      FilePickerResult? result = await FilePicker.pickFiles (
+      FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.media,
         allowMultiple: false,
       );

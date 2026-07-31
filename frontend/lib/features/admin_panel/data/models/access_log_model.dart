@@ -17,7 +17,12 @@ class AccessLogModel extends AccessLogEntity {
     return AccessLogModel(
       id: (json['id'] ?? '').toString(),
       visitor: (json['visitor'] ?? json['visitor_name'] ?? '').toString(),
-      resident: (json['resident'] ?? json['resident_name'] ?? json['resident_user_id'] ?? '').toString(),
+      resident:
+          (json['resident'] ??
+                  json['resident_name'] ??
+                  json['resident_user_id'] ??
+                  '')
+              .toString(),
       time: (json['time'] ?? json['created_at'] ?? '').toString(),
       type: (json['type'] ?? json['action'] ?? '').toString(),
       status: (json['status'] ?? '').toString(),

@@ -38,12 +38,10 @@ class _ImageLoadingSkeletonState extends State<ImageLoadingSkeleton>
         return Container(
           height: 180,
           decoration: BoxDecoration(
-            color: theme.dividerColor.withOpacity(_animation.value),
+            color: theme.dividerColor.withValues(alpha: _animation.value),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: const Center(child: CircularProgressIndicator()),
         );
       },
     );

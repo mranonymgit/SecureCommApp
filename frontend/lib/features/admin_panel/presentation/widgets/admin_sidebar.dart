@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/network/api_session.dart';
+import 'package:frontend/core/services/community_realtime_service.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
 
 class AdminSidebar extends StatelessWidget {
@@ -35,7 +36,9 @@ class AdminSidebar extends StatelessWidget {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () {
+            onPressed: () async {
+              await CommunityRealtimeService.instance.disconnect();
+              if (!context.mounted) return;
               ApiSession.instance.clear();
               Navigator.pushAndRemoveUntil(
                 context,
@@ -114,6 +117,12 @@ class AdminSidebar extends StatelessWidget {
             ),
             _buildNavItem(7, Icons.gavel_outlined, Icons.gavel, 'Reglamento'),
             _buildNavItem(8, Icons.quiz_outlined, Icons.quiz, 'Preguntas FAQ'),
+            _buildNavItem(
+              9,
+              Icons.notifications_none,
+              Icons.notifications,
+              'Notificaciones',
+            ),
             const Spacer(),
             const Divider(color: Colors.white12, height: 1),
             ListTile(

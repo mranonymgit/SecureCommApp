@@ -1,4 +1,5 @@
 enum TipoUsuario { admin, usuario }
+
 enum TipoMensaje { texto, audio }
 
 class MensajeChat {
@@ -26,5 +27,6 @@ class MensajeChat {
     required this.esMio,
   });
 
-  TipoMensaje get tipoMensaje => audioUrl != null ? TipoMensaje.audio : TipoMensaje.texto;
+  TipoMensaje get tipoMensaje =>
+      audioUrl != null ? TipoMensaje.audio : TipoMensaje.texto;
 }

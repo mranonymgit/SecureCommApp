@@ -47,7 +47,10 @@ class QuickActionCard extends StatelessWidget {
                     const SizedBox(height: 2.0),
                     Text(
                       subtitle,
-                      style: const TextStyle(color: Colors.white38, fontSize: 12.0),
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 12.0,
+                      ),
                     ),
                   ],
                 ),

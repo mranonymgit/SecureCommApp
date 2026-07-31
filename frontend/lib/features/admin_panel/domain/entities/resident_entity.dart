@@ -10,6 +10,7 @@ class ResidentEntity {
   final String email;
   final String phone;
   final String avatarUrl;
+  final String status;
 
   const ResidentEntity({
     required this.id,
@@ -23,5 +24,6 @@ class ResidentEntity {
     required this.email,
     required this.phone,
     required this.avatarUrl,
+    this.status = 'active',
   });
 }

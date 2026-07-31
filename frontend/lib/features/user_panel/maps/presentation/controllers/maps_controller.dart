@@ -1,18 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../domain/entities/incidencia.dart';
 import '../../domain/usecases/get_incidencias_usecase.dart';
 import '../../domain/repositories/maps_repository.dart';
+import '../../../../../core/services/community_realtime_service.dart';
 
 class MapsController extends ChangeNotifier {
   final GetIncidenciasUseCase getIncidenciasUseCase;
   final MapsRepository? mapsRepository;
 
-  MapsController({
-    required this.getIncidenciasUseCase,
-    this.mapsRepository,
-  });
+  MapsController({required this.getIncidenciasUseCase, this.mapsRepository});
 
   final MapController mapController = MapController();
   static const LatLng posicionInicial = LatLng(19.432608, -99.133209);
@@ -22,6 +22,7 @@ class MapsController extends ChangeNotifier {
   bool isLoading = false;
   String? errorMessage;
   bool isUpdatingStatus = false;
+  StreamSubscription<CommunityChange>? _realtimeSubscription;
 
   Future<void> loadIncidencias() async {
     isLoading = true;
@@ -39,6 +40,28 @@ class MapsController extends ChangeNotifier {
     }
   }
 
+  void connectRealtime() {
+    _realtimeSubscription ??= CommunityRealtimeService.instance
+        .watchTables(const {'reports'})
+        .listen((_) => unawaited(refreshIncidenciasSilently()));
+  }
+
+  Future<void> refreshIncidenciasSilently() async {
+    try {
+      final selectedId = incidenciaSeleccionada?.id;
+      incidencias = await getIncidenciasUseCase();
+      if (selectedId != null) {
+        incidenciaSeleccionada = incidencias
+            .where((item) => item.id == selectedId)
+            .firstOrNull;
+      }
+      errorMessage = null;
+      notifyListeners();
+    } catch (_) {
+      // Preserve markers already rendered on the map.
+    }
+  }
+
   void seleccionarIncidencia(Incidencia? incidencia) {
     incidenciaSeleccionada = incidencia;
     if (incidencia != null) {
@@ -52,9 +75,13 @@ class MapsController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> cambiarEstado(Incidencia incidencia, EstadoIncidencia nuevoEstado) async {
+  Future<void> cambiarEstado(
+    Incidencia incidencia,
+    EstadoIncidencia nuevoEstado,
+  ) async {
     if (mapsRepository == null) {
-      errorMessage = 'No hay repositorio configurado para actualizar incidencias.';
+      errorMessage =
+          'No hay repositorio configurado para actualizar incidencias.';
       notifyListeners();
       return;
     }
@@ -64,7 +91,10 @@ class MapsController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final updated = await mapsRepository!.updateIncidenciaStatus(incidencia.id, nuevoEstado);
+      final updated = await mapsRepository!.updateIncidenciaStatus(
+        incidencia.id,
+        nuevoEstado,
+      );
       final index = incidencias.indexWhere((item) => item.id == incidencia.id);
       if (index != -1) {
         incidencias[index] = updated;
@@ -78,5 +108,12 @@ class MapsController extends ChangeNotifier {
       isUpdatingStatus = false;
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    _realtimeSubscription?.cancel();
+    mapController.dispose();
+    super.dispose();
   }
 }

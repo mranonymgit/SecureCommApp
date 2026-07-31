@@ -5,5 +5,6 @@ class EnviarMensajeUseCase {
   final ChatRepository repository;
   EnviarMensajeUseCase(this.repository);
 
-  Future<MensajeChat> call(MensajeChat mensaje) async => await repository.enviarMensaje(mensaje);
+  Future<MensajeChat> call(MensajeChat mensaje) async =>
+      await repository.enviarMensaje(mensaje);
 }

@@ -9,7 +9,8 @@ class MensajeAnimado extends StatefulWidget {
   State<MensajeAnimado> createState() => _MensajeAnimadoState();
 }
 
-class _MensajeAnimadoState extends State<MensajeAnimado> with SingleTickerProviderStateMixin {
+class _MensajeAnimadoState extends State<MensajeAnimado>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -22,13 +23,15 @@ class _MensajeAnimadoState extends State<MensajeAnimado> with SingleTickerProvid
       duration: const Duration(milliseconds: 300),
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
-    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.95,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 
     _controller.forward();
   }
@@ -43,10 +46,7 @@ class _MensajeAnimadoState extends State<MensajeAnimado> with SingleTickerProvid
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: widget.child,
-      ),
+      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
     );
   }
 }

@@ -4,11 +4,7 @@ class ItemLeyenda extends StatelessWidget {
   final Color color;
   final String texto;
 
-  const ItemLeyenda({
-    super.key,
-    required this.color,
-    required this.texto,
-  });
+  const ItemLeyenda({super.key, required this.color, required this.texto});
 
   @override
   Widget build(BuildContext context) {
@@ -24,10 +20,7 @@ class ItemLeyenda extends StatelessWidget {
             color: color,
             shape: BoxShape.circle,
             boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.5),
-                blurRadius: 4,
-              )
+              BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 4),
             ],
           ),
         ),

@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 
 class NotificationItemTile extends StatelessWidget {
   final Map<String, dynamic> notificacion;
-  final VoidCallback onTap;
-  final DismissDirectionCallback onDismissed;
+  final Future<void> Function() onTap;
+  final Future<bool> Function() onDelete;
+  final Future<bool> Function() onMarkRead;
+  final VoidCallback onDismissed;
 
   const NotificationItemTile({
     super.key,
     required this.notificacion,
     required this.onTap,
+    required this.onDelete,
+    required this.onMarkRead,
     required this.onDismissed,
   });
 
@@ -19,38 +23,52 @@ class NotificationItemTile extends StatelessWidget {
 
     return Dismissible(
       key: Key(notificacion['id']),
-      direction: DismissDirection.endToStart,
-      onDismissed: onDismissed,
+      direction: DismissDirection.horizontal,
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          return onDelete();
+        }
+        await onMarkRead();
+        return false;
+      },
+      onDismissed: (_) => onDismissed(),
       background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20.0),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20.0),
         margin: const EdgeInsets.only(bottom: 12.0),
         decoration: BoxDecoration(
           color: theme.colorScheme.error,
           borderRadius: BorderRadius.circular(12.0),
         ),
-        child: Icon(
-          Icons.delete,
-          color: theme.colorScheme.onError,
+        child: Icon(Icons.delete, color: theme.colorScheme.onError),
+      ),
+      secondaryBackground: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20.0),
+        margin: const EdgeInsets.only(bottom: 12.0),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primary,
+          borderRadius: BorderRadius.circular(12.0),
         ),
+        child: Icon(Icons.done, color: theme.colorScheme.onPrimary),
       ),
       child: Card(
         margin: const EdgeInsets.only(bottom: 12.0),
         color: leida
             ? theme.cardColor
-            : theme.colorScheme.primaryContainer.withOpacity(0.2),
+            : theme.colorScheme.primaryContainer.withValues(alpha: 0.2),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
           side: BorderSide(
             color: leida
                 ? theme.dividerColor
-                : theme.colorScheme.primary.withOpacity(0.5),
+                : theme.colorScheme.primary.withValues(alpha: 0.5),
             width: leida ? 1.0 : 1.5,
           ),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(12.0),
-          onTap: onTap,
+          onTap: () => onTap(),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -60,14 +78,14 @@ class NotificationItemTile extends StatelessWidget {
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: leida
-                        ? theme.colorScheme.onSurface.withOpacity(0.08)
-                        : theme.colorScheme.primary.withOpacity(0.15),
+                        ? theme.colorScheme.onSurface.withValues(alpha: 0.08)
+                        : theme.colorScheme.primary.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     notificacion['icono'],
                     color: leida
-                        ? theme.colorScheme.onSurface.withOpacity(0.54)
+                        ? theme.colorScheme.onSurface.withValues(alpha: 0.54)
                         : theme.colorScheme.primary,
                     size: 24,
                   ),
@@ -85,8 +103,9 @@ class NotificationItemTile extends StatelessWidget {
                               notificacion['titulo'],
                               style: TextStyle(
                                 fontSize: 15,
-                                fontWeight:
-                                    leida ? FontWeight.normal : FontWeight.bold,
+                                fontWeight: leida
+                                    ? FontWeight.normal
+                                    : FontWeight.bold,
                                 color: theme.colorScheme.onSurface,
                               ),
                             ),
@@ -95,7 +114,9 @@ class NotificationItemTile extends StatelessWidget {
                             notificacion['fecha'],
                             style: TextStyle(
                               fontSize: 12,
-                              color: theme.colorScheme.onSurface.withOpacity(0.38),
+                              color: theme.colorScheme.onSurface.withValues(alpha: 
+                                0.38,
+                              ),
                             ),
                           ),
                         ],
@@ -106,7 +127,7 @@ class NotificationItemTile extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13,
                           height: 1.3,
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                     ],

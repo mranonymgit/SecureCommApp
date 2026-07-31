@@ -1,6 +1,4 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import '../../data/repositories/chat_repository_impl.dart';
 import '../../domain/usecases/get_mensajes_usecase.dart';
 import '../../domain/usecases/enviar_mensaje_usecase.dart';
@@ -8,6 +6,7 @@ import '../../domain/usecases/obtener_resumen_ia_usecase.dart';
 import '../controllers/chat_controller.dart';
 import '../widgets/burbuja_chat.dart';
 import '../widgets/mensaje_animado.dart';
+import '../../../../../core/presentation/app_toast.dart';
 
 class Chatscreen extends StatefulWidget {
   final ChatController? controller;
@@ -20,7 +19,6 @@ class Chatscreen extends StatefulWidget {
 
 class _ChatscreenState extends State<Chatscreen> {
   late final ChatController _controller;
-  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -35,17 +33,25 @@ class _ChatscreenState extends State<Chatscreen> {
         );
 
     _controller.cargarMensajes();
-    _refreshTimer = Timer.periodic(
-      const Duration(seconds: 8),
-      (_) => _controller.cargarMensajes(),
-    );
+    _controller.conectarTiempoReal();
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleAudioRecording() async {
+    final error = await _controller.toggleAudioRecording();
+    if (error != null && mounted) {
+      AppToast.show(context, error, type: AppToastType.error);
+    }
+  }
+
+  Future<void> _handleSendMessage() async {
+    final error = await _controller.enviarTexto();
+    if (error != null && mounted) AppToast.error(context, error);
   }
 
   void _mostrarDialogoResumenIA(ThemeData theme) async {
@@ -54,12 +60,7 @@ class _ChatscreenState extends State<Chatscreen> {
       resumen = await _controller.obtenerResumen();
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('No fue posible generar el resumen del chat.'),
-          backgroundColor: theme.colorScheme.error,
-        ),
-      );
+      AppToast.error(context, 'No fue posible generar el resumen del chat.');
       return;
     }
     if (!mounted) return;
@@ -95,17 +96,17 @@ class _ChatscreenState extends State<Chatscreen> {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
               const SizedBox(height: 10),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.15),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: theme.colorScheme.primary.withOpacity(0.3),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Text(
@@ -154,24 +155,6 @@ class _ChatscreenState extends State<Chatscreen> {
     }
   }
 
-  Future<void> _adjuntarAudio() async {
-    final selected = await FilePicker.pickFiles(
-      type: FileType.audio,
-      withData: true,
-    );
-    final file = selected?.files.single;
-    if (file == null || file.bytes == null) return;
-    final ok = await _controller.enviarAudio(file.bytes!, file.name);
-    if (!mounted || ok) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _controller.errorMessage ?? 'No se pudo enviar el audio.',
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -210,13 +193,13 @@ class _ChatscreenState extends State<Chatscreen> {
                                       hintText: 'Buscar mensaje o usuario...',
                                       hintStyle: TextStyle(
                                         color: colorScheme.onSurface
-                                            .withOpacity(0.4),
+                                            .withValues(alpha: 0.4),
                                       ),
                                       prefixIcon: Icon(
                                         Icons.search,
                                         size: 20,
                                         color: colorScheme.onSurface
-                                            .withOpacity(0.6),
+                                            .withValues(alpha: 0.6),
                                       ),
                                       contentPadding:
                                           const EdgeInsets.symmetric(
@@ -246,7 +229,7 @@ class _ChatscreenState extends State<Chatscreen> {
                                   icon: Icon(
                                     Icons.close,
                                     size: 20,
-                                    color: colorScheme.onSurface.withOpacity(
+                                    color: colorScheme.onSurface.withValues(alpha: 
                                       0.6,
                                     ),
                                   ),
@@ -263,7 +246,7 @@ class _ChatscreenState extends State<Chatscreen> {
                     child: _controller.filtroFecha != null
                         ? Container(
                             width: double.infinity,
-                            color: colorScheme.primary.withOpacity(0.15),
+                            color: colorScheme.primary.withValues(alpha: 0.15),
                             padding: const EdgeInsets.symmetric(
                               vertical: 6,
                               horizontal: 16,
@@ -275,7 +258,7 @@ class _ChatscreenState extends State<Chatscreen> {
                                   'Filtrando fecha: ${_controller.filtroFecha!.day}/${_controller.filtroFecha!.month}/${_controller.filtroFecha!.year}',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: colorScheme.onSurface.withOpacity(
+                                    color: colorScheme.onSurface.withValues(alpha: 
                                       0.8,
                                     ),
                                     fontWeight: FontWeight.w500,
@@ -286,7 +269,7 @@ class _ChatscreenState extends State<Chatscreen> {
                                   child: Icon(
                                     Icons.cancel,
                                     size: 16,
-                                    color: colorScheme.onSurface.withOpacity(
+                                    color: colorScheme.onSurface.withValues(alpha: 
                                       0.8,
                                     ),
                                   ),
@@ -312,7 +295,7 @@ class _ChatscreenState extends State<Chatscreen> {
                             child: Text(
                               'Aún no hay mensajes en el chat comunitario.',
                               style: TextStyle(
-                                color: colorScheme.onSurface.withOpacity(0.65),
+                                color: colorScheme.onSurface.withValues(alpha: 0.65),
                               ),
                             ),
                           )
@@ -363,74 +346,128 @@ class _ChatscreenState extends State<Chatscreen> {
                         top: BorderSide(color: theme.dividerColor),
                       ),
                     ),
-                    child: Row(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _controller.textController,
-                            onChanged: (_) => setState(() {}),
-                            style: TextStyle(color: colorScheme.onSurface),
-                            decoration: InputDecoration(
-                              hintText: 'Escribe un mensaje...',
-                              hintStyle: TextStyle(
-                                color: colorScheme.onSurface.withOpacity(0.4),
+                        if (_controller.vecinoEstaEscribiendo)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                left: 12,
+                                bottom: 6,
                               ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              fillColor: theme.scaffoldBackgroundColor,
-                              filled: true,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: BorderSide(
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: BorderSide(
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: BorderSide(
-                                  color: colorScheme.primary,
-                                  width: 2,
+                              child: Text(
+                                'Alguien está escribiendo...',
+                                style: TextStyle(
+                                  color: colorScheme.onSurface.withValues(alpha: 
+                                    0.58,
+                                  ),
+                                  fontSize: 12,
                                 ),
                               ),
                             ),
                           ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _controller.textController,
+                                enabled:
+                                    !_controller.isRecording &&
+                                    !_controller.isSendingAudio,
+                                onChanged: (_) => setState(() {}),
+                                style: TextStyle(color: colorScheme.onSurface),
+                                decoration: InputDecoration(
+                                  hintText: _controller.isRecording
+                                      ? 'Grabando ${_controller.recordingTimeLabel}'
+                                      : _controller.isSendingAudio
+                                      ? 'Enviando audio...'
+                                      : 'Escribe un mensaje...',
+                                  hintStyle: TextStyle(
+                                    color: colorScheme.onSurface.withValues(alpha: 
+                                      0.4,
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                  fillColor: theme.scaffoldBackgroundColor,
+                                  filled: true,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                    borderSide: BorderSide(
+                                      color: theme.dividerColor,
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                    borderSide: BorderSide(
+                                      color: theme.dividerColor,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.primary,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            if (_controller.textController.text
+                                    .trim()
+                                    .isEmpty ||
+                                _controller.isRecording ||
+                                _controller.isSendingAudio)
+                              CircleAvatar(
+                                radius: 22,
+                                backgroundColor: colorScheme.primary,
+                                child: IconButton(
+                                  tooltip: _controller.isRecording
+                                      ? 'Enviar audio'
+                                      : 'Grabar audio',
+                                  onPressed: _controller.isSendingAudio
+                                      ? null
+                                      : _handleAudioRecording,
+                                  icon: _controller.isSendingAudio
+                                      ? SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: colorScheme.onPrimary,
+                                          ),
+                                        )
+                                      : Icon(
+                                          _controller.isRecording
+                                              ? Icons.stop_circle
+                                              : Icons.mic,
+                                          color: _controller.isRecording
+                                              ? Colors.redAccent
+                                              : colorScheme.onPrimary,
+                                          size: 21,
+                                        ),
+                                ),
+                              )
+                            else
+                              CircleAvatar(
+                                radius: 22,
+                                backgroundColor: colorScheme.primary,
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.send,
+                                    color: colorScheme.onPrimary,
+                                    size: 18,
+                                  ),
+                                  onPressed: _handleSendMessage,
+                                ),
+                              ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        if (_controller.textController.text.trim().isEmpty)
-                          CircleAvatar(
-                            radius: 22,
-                            backgroundColor: colorScheme.primary,
-                            child: IconButton(
-                              tooltip: 'Adjuntar audio',
-                              onPressed: _adjuntarAudio,
-                              icon: Icon(
-                                Icons.audio_file,
-                                color: colorScheme.onPrimary,
-                                size: 21,
-                              ),
-                            ),
-                          )
-                        else
-                          CircleAvatar(
-                            radius: 22,
-                            backgroundColor: colorScheme.primary,
-                            child: IconButton(
-                              icon: Icon(
-                                Icons.send,
-                                color: colorScheme.onPrimary,
-                                size: 18,
-                              ),
-                              onPressed: _controller.enviarTexto,
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -453,7 +490,7 @@ class _ChatscreenState extends State<Chatscreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
@@ -479,7 +516,7 @@ class _ChatscreenState extends State<Chatscreen> {
                         children: [
                           Icon(
                             Icons.search,
-                            color: colorScheme.onSurface.withOpacity(0.7),
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
                           ),
                           const SizedBox(width: 12),
                           Text(
@@ -535,8 +572,8 @@ class _SeparadorFecha extends StatelessWidget {
       child: Center(
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(
-              alpha: 0.8,
+            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 
+              0.8,
             ),
             borderRadius: BorderRadius.circular(12),
           ),

@@ -5,6 +5,7 @@ import '../../domain/entities/faq_item.dart';
 import '../../domain/entities/notification_item.dart';
 import '../../domain/entities/rule_item.dart';
 import '../../domain/entities/user_preferences.dart';
+import '../../../../../core/network/api_exception.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../domain/repositories/settings_repository.dart';
 import '../models/faq_item_model.dart';
@@ -112,11 +113,20 @@ class SettingsRepositoryImpl implements SettingsRepository {
 
   @override
   Future<void> markNotificationRead(String id) async {
-    await _apiClient.patchJson('/api/me/notifications/$id/read', {});
+    final response = await _apiClient.patchJson(
+      '/api/me/notifications/$id/read',
+      {},
+    );
+    if (response['is_read'] != true) {
+      throw ApiException(404, 'La notificación ya no está disponible.');
+    }
   }
 
   @override
   Future<void> deleteNotification(String id) async {
-    await _apiClient.deleteJson('/api/me/notifications/$id');
+    final response = await _apiClient.deleteJson('/api/me/notifications/$id');
+    if (response['success'] != true) {
+      throw ApiException(404, 'La notificación ya no está disponible.');
+    }
   }
 }

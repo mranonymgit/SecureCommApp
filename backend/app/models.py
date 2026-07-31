@@ -235,6 +235,7 @@ class Report(Base, TimestampMixin):
     status: Mapped[ReportStatus] = mapped_column(Enum(ReportStatus, name="report_status", schema="app"), nullable=False)
     assigned_to_user_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("app.users.id", ondelete="RESTRICT"), nullable=True)
     evidence_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reporter_user = relationship("User", foreign_keys=[reporter_user_id], lazy="joined")
 
 
 class PanicAlert(Base, TimestampMixin):

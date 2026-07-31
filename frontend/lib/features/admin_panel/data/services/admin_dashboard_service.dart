@@ -8,7 +8,8 @@ abstract class AdminDashboardService {
 class AdminDashboardServiceImpl implements AdminDashboardService {
   final ApiClient _apiClient;
 
-  AdminDashboardServiceImpl({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
+  AdminDashboardServiceImpl({ApiClient? apiClient})
+    : _apiClient = apiClient ?? ApiClient();
 
   @override
   Future<AdminDashboardStatsModel> fetchDashboardStats() async {

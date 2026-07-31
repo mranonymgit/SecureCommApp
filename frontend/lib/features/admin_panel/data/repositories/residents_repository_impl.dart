@@ -7,7 +7,7 @@ class ResidentsRepositoryImpl implements ResidentsRepository {
   final ResidentService service;
 
   ResidentsRepositoryImpl({ResidentService? service})
-      : service = service ?? ResidentServiceImpl();
+    : service = service ?? ResidentServiceImpl();
 
   @override
   Future<List<ResidentEntity>> getResidents() async {
@@ -26,6 +26,7 @@ class ResidentsRepositoryImpl implements ResidentsRepository {
             email: resident.email,
             phone: resident.phone,
             avatarUrl: resident.avatarUrl,
+            status: resident.status,
           ),
         )
         .toList(growable: false);
@@ -46,6 +47,7 @@ class ResidentsRepositoryImpl implements ResidentsRepository {
       email: created.email,
       phone: created.phone,
       avatarUrl: created.avatarUrl,
+      status: created.status,
     );
   }
 }

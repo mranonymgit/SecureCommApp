@@ -10,12 +10,16 @@ abstract class ResidentService {
 class ResidentServiceImpl implements ResidentService {
   final ApiClient _apiClient;
 
-  ResidentServiceImpl({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
+  ResidentServiceImpl({ApiClient? apiClient})
+    : _apiClient = apiClient ?? ApiClient();
 
   @override
   Future<List<ResidentModel>> fetchResidents() async {
     final items = await _apiClient.getList('/api/admin/residents');
-    return items.cast<Map<String, dynamic>>().map(ResidentModel.fromJson).toList(growable: false);
+    return items
+        .cast<Map<String, dynamic>>()
+        .map(ResidentModel.fromJson)
+        .toList(growable: false);
   }
 
   @override
@@ -30,7 +34,6 @@ class ResidentServiceImpl implements ResidentService {
       'conditions': resident.illnesses,
       'allergies': resident.allergies,
       'emergency_contact_name': resident.emergencyContact,
-      'emergency_contact_phone': resident.phone,
     };
     final data = await _apiClient.postJson('/api/admin/residents', payload);
     return ResidentModel.fromJson(data);

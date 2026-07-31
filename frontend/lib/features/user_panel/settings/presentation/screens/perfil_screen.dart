@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../../core/presentation/app_toast.dart';
 import '../controllers/profile_controller.dart';
 import '../widgets/profile_avatar_picker.dart';
 import '../widgets/profile_text_field.dart';
@@ -30,7 +31,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
 
   void _showImageSourceOptions() {
     if (kIsWeb) {
-      _controller.pickImage(ImageSource.gallery);
+      _pickImage(ImageSource.gallery);
       return;
     }
 
@@ -44,19 +45,35 @@ class _PerfilScreenState extends State<PerfilScreen> {
         child: Wrap(
           children: [
             ListTile(
-              leading: Icon(Icons.photo_library, color: Theme.of(context).colorScheme.primary),
-              title: Text('Galería', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+              leading: Icon(
+                Icons.photo_library,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: Text(
+                'Galería',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
               onTap: () {
                 Navigator.pop(context);
-                _controller.pickImage(ImageSource.gallery);
+                _pickImage(ImageSource.gallery);
               },
             ),
             ListTile(
-              leading: Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.primary),
-              title: Text('Tomar foto', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+              leading: Icon(
+                Icons.camera_alt,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: Text(
+                'Tomar foto',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
               onTap: () {
                 Navigator.pop(context);
-                _controller.pickImage(ImageSource.camera);
+                _pickImage(ImageSource.camera);
               },
             ),
           ],
@@ -65,15 +82,29 @@ class _PerfilScreenState extends State<PerfilScreen> {
     );
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    await _controller.pickImage(source);
+    final error = _controller.actionErrorMessage;
+    if (error != null && mounted) AppToast.error(context, error);
+  }
+
+  Future<void> _useCurrentLocation() async {
+    await _controller.useCurrentLocation();
+    final error = _controller.actionErrorMessage;
+    if (error != null && mounted) AppToast.error(context, error);
+  }
+
   Future<void> _guardar() async {
     final ok = await _controller.saveProfile();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(ok ? 'Perfil actualizado.' : (_controller.errorMessage ?? 'No se pudo guardar.')),
-        backgroundColor: ok ? Colors.green : Theme.of(context).colorScheme.error,
-      ),
-    );
+    if (ok) {
+      AppToast.success(context, 'Perfil actualizado.');
+    } else {
+      AppToast.error(
+        context,
+        _controller.actionErrorMessage ?? 'No se pudo guardar el perfil.',
+      );
+    }
   }
 
   @override
@@ -84,7 +115,10 @@ class _PerfilScreenState extends State<PerfilScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('Mi Perfil', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18)),
+        title: const Text(
+          'Mi Perfil',
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+        ),
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
         foregroundColor: theme.colorScheme.onSurface,
@@ -96,9 +130,22 @@ class _PerfilScreenState extends State<PerfilScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
+          if (_controller.loadErrorMessage != null) {
+            return Center(
+              child: FilledButton.icon(
+                onPressed: _controller.loadProfile,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar carga del perfil'),
+              ),
+            );
+          }
+
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 32.0,
+            ),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 600),
@@ -114,8 +161,14 @@ class _PerfilScreenState extends State<PerfilScreen> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      _controller.nameController.text.isEmpty ? 'Perfil de residente' : _controller.nameController.text,
-                      style: TextStyle(fontSize: 22.0, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                      _controller.nameController.text.isEmpty
+                          ? 'Perfil de residente'
+                          : _controller.nameController.text,
+                      style: TextStyle(
+                        fontSize: 22.0,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
                     const SizedBox(height: 24.0),
                     ProfileTextField(
@@ -146,17 +199,23 @@ class _PerfilScreenState extends State<PerfilScreen> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
-                        onPressed: _controller.useCurrentLocation,
+                        onPressed: _useCurrentLocation,
                         icon: const Icon(Icons.my_location),
                         label: const Text('Usar ubicación actual'),
                       ),
                     ),
-                    if (_controller.latitude != null && _controller.longitude != null)
+                    if (_controller.latitude != null &&
+                        _controller.longitude != null)
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'Coordenadas: ${_controller.latitude!.toStringAsFixed(6)}, ${_controller.longitude!.toStringAsFixed(6)}',
-                          style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.68), fontSize: 12),
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 
+                              0.68,
+                            ),
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     const SizedBox(height: 24.0),
@@ -168,17 +227,31 @@ class _PerfilScreenState extends State<PerfilScreen> {
                           backgroundColor: theme.colorScheme.primary,
                           foregroundColor: theme.colorScheme.onPrimary,
                           elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
                         onPressed: _controller.isSaving ? null : _guardar,
                         icon: _controller.isSaving
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
                               )
-                            : const Icon(Icons.check_circle_outline, size: 22.0),
-                        label: const Text('Guardar cambios', style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold)),
+                            : const Icon(
+                                Icons.check_circle_outline,
+                                size: 22.0,
+                              ),
+                        label: const Text(
+                          'Guardar cambios',
+                          style: TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                   ],

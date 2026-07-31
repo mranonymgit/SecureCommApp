@@ -8,6 +8,7 @@ import '../../data/repositories/reports_repository_impl.dart';
 import '../../domain/usecases/create_report_usecase.dart';
 import '../controllers/create_report_controller.dart';
 import '../widgets/image_loading_skeleton.dart';
+import '../../../../../core/presentation/app_toast.dart';
 
 class CreateReportScreen extends StatefulWidget {
   final CreateReportController? controller;
@@ -41,12 +42,7 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
   void _onGetLocationPressed() async {
     await _controller.obtenerUbicacion();
     if (_controller.errorMessage != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_controller.errorMessage!),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      AppToast.error(context, _controller.errorMessage!);
     } else if (_controller.hasLocation && _mapReady) {
       _mapController.move(
         LatLng(_controller.latitude!, _controller.longitude!),
@@ -57,7 +53,7 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
 
   void _showImageSourceOptions() {
     if (kIsWeb) {
-      _controller.pickImage(ImageSource.gallery);
+      _pickImage(ImageSource.gallery);
       return;
     }
 
@@ -83,7 +79,7 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                _controller.pickImage(ImageSource.gallery);
+                _pickImage(ImageSource.gallery);
               },
             ),
             ListTile(
@@ -99,13 +95,20 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                _controller.pickImage(ImageSource.camera);
+                _pickImage(ImageSource.camera);
               },
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    await _controller.pickImage(source);
+    if (_controller.errorMessage != null && mounted) {
+      AppToast.error(context, _controller.errorMessage!);
+    }
   }
 
   Widget _buildImagePreview() {
@@ -131,19 +134,9 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
 
     if (!mounted) return;
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Reporte enviado con éxito.'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      AppToast.success(context, 'Reporte enviado con éxito.');
     } else if (_controller.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_controller.errorMessage!),
-          backgroundColor: Colors.orangeAccent,
-        ),
-      );
+      AppToast.error(context, _controller.errorMessage!);
     }
   }
 

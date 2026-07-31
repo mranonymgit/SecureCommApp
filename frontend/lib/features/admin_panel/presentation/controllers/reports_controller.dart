@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import '../../../../core/services/community_realtime_service.dart';
+import '../../../../core/network/api_error_message.dart';
 import '../../domain/entities/report_entity.dart';
 import '../../domain/usecases/get_reports_usecase.dart';
 import '../../domain/usecases/update_report_status_usecase.dart';
@@ -15,11 +19,14 @@ class ReportsController extends ChangeNotifier {
   List<ReportEntity> _reports = [];
   bool _isLoading = false;
   String? _errorMessage;
+  String? _actionErrorMessage;
+  StreamSubscription<CommunityChange>? _realtimeSubscription;
 
   List<ReportEntity> get reports => _reports;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get hasError => _errorMessage != null;
+  String? get actionErrorMessage => _actionErrorMessage;
 
   Future<void> loadReports() async {
     _isLoading = true;
@@ -38,19 +45,40 @@ class ReportsController extends ChangeNotifier {
     }
   }
 
-  Future<void> changeStatus(String id, String newStatus) async {
+  void connectRealtime() {
+    _realtimeSubscription ??= CommunityRealtimeService.instance
+        .watchTables(const {'reports'})
+        .listen((_) => unawaited(refreshReportsSilently()));
+  }
+
+  Future<void> refreshReportsSilently() async {
+    try {
+      _reports = await getReportsUseCase();
+      _errorMessage = null;
+      notifyListeners();
+    } catch (_) {
+      // Keep existing report cards on transient failures.
+    }
+  }
+
+  Future<String?> changeStatus(String id, String newStatus) async {
     try {
       final updated = await updateReportStatusUseCase(id, newStatus);
       final index = _reports.indexWhere((r) => r.id == id);
       if (index != -1) {
         _reports[index] = updated;
-        _errorMessage = null;
+        _actionErrorMessage = null;
         notifyListeners();
       }
-    } catch (e) {
-      _errorMessage = 'No fue posible actualizar el estado del reporte.';
-      debugPrint('Error al actualizar el estado: $e');
+      return null;
+    } catch (error) {
+      _actionErrorMessage = ApiErrorMessage.from(
+        error,
+        fallback: 'No fue posible actualizar el estado del reporte.',
+      );
+      debugPrint('Error al actualizar el estado: $error');
       notifyListeners();
+      return _actionErrorMessage;
     }
   }
 
@@ -95,5 +123,11 @@ class ReportsController extends ChangeNotifier {
       default:
         return status;
     }
+  }
+
+  @override
+  void dispose() {
+    _realtimeSubscription?.cancel();
+    super.dispose();
   }
 }

@@ -10,6 +10,7 @@ import '../controllers/auth_controller.dart';
 import '../widgets/auth_background.dart';
 import '../widgets/auth_text_field.dart';
 import 'forgot_screen.dart';
+import '../../../../core/presentation/app_toast.dart';
 
 class LoginScreen extends StatefulWidget {
   final AuthController? controller;
@@ -30,7 +31,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     final repo = AuthRepositoryImpl();
-    _controller = widget.controller ??
+    _controller =
+        widget.controller ??
         AuthController(
           loginUseCase: LoginUseCase(repo),
           resetPasswordUseCase: ResetPasswordUseCase(repo),
@@ -51,11 +53,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text.trim();
 
     if (username.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, ingresa usuario y contraseña.', style: TextStyle(color: Colors.white)),
-          backgroundColor: Color(0xFFE53935),
-        ),
+      AppToast.show(
+        context,
+        'Por favor, ingresa correo y contraseña.',
+        type: AppToastType.error,
       );
       return;
     }
@@ -65,36 +66,32 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (user != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            user.role == UserRole.admin
-                ? 'Accediendo como Administrador...'
-                : 'Accediendo como Residente...',
-          ),
-          backgroundColor: Colors.green,
-        ),
+      AppToast.show(
+        context,
+        user.role == UserRole.admin
+            ? 'Accediendo como Administrador...'
+            : 'Accediendo como Residente...',
+        type: AppToastType.success,
       );
       Widget targetScreen;
-        if (user.role == UserRole.admin) {
-          targetScreen = const AdminDashboardScreen();
-        } else {
-          targetScreen = const HomeScreen();
-        }
-
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => targetScreen),
-          (route) => false,
-        );
+      if (user.role == UserRole.admin) {
+        targetScreen = const AdminDashboardScreen();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_controller.errorMessage ?? 'Usuario o contraseña incorrectos.'),
-            backgroundColor: const Color(0xFFE53935),
-          ),
-        );
+        targetScreen = const HomeScreen();
       }
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => targetScreen),
+        (route) => false,
+      );
+    } else {
+      AppToast.show(
+        context,
+        _controller.errorMessage ?? 'Usuario o contraseña incorrectos.',
+        type: AppToastType.error,
+      );
+    }
   }
 
   @override
@@ -103,7 +100,10 @@ class _LoginScreenState extends State<LoginScreen> {
       body: AuthBackground(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: Container(
               padding: const EdgeInsets.all(20.0),
               decoration: const BoxDecoration(
@@ -138,10 +138,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     obscureText: _obscurePassword,
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                         color: Colors.white70,
                       ),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
                   const SizedBox(height: 8.0),
@@ -156,13 +159,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => ForgotScreen(controller: _controller),
+                            builder: (context) =>
+                                ForgotScreen(controller: _controller),
                           ),
                         );
                       },
                       child: const Text(
                         '¿Olvidaste tu contraseña?',
-                        style: TextStyle(color: AppColors.accent, fontSize: 15.0),
+                        style: TextStyle(
+                          color: AppColors.accent,
+                          fontSize: 15.0,
+                        ),
                       ),
                     ),
                   ),
@@ -176,7 +183,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           backgroundColor: AppColors.primaryDark,
                           foregroundColor: AppColors.accent,
                           elevation: 5,
-                          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 30,
+                            vertical: 15,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15),
                           ),
@@ -185,7 +195,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Text(
                                 'Iniciar Sesión',

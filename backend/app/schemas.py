@@ -1,7 +1,9 @@
 from datetime import datetime
+from typing import Literal
+from urllib.parse import urlparse
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from .models import AnnouncementCategory, PanicStatus, PasswordChangeStatus, ReportStatus, UserRole, VisitStatus
 
@@ -24,12 +26,23 @@ class LoginUserOut(BaseModel):
 
 class LoginResponse(BaseModel):
     access_token: str
+    realtime_token: str | None = None
     token_type: str = "bearer"
     user: LoginUserOut
 
 
+class RealtimeTokenResponse(BaseModel):
+    realtime_token: str
+    expires_in: int
+
+
 class PasswordChangeRequest(BaseModel):
     new_password: str = Field(min_length=12, max_length=72)
+
+
+class PublicPasswordChangeRequest(PasswordChangeRequest):
+    community_slug: str = Field(min_length=2, max_length=120)
+    email: EmailStr
 
 
 class PasswordChangeRequestOut(BaseModel):
@@ -181,6 +194,10 @@ class ResidentOut(BaseModel):
     avatar_url: str | None = None
 
 
+class ResidentStatusUpdate(BaseModel):
+    active: bool
+
+
 class AccessLogOut(BaseModel):
     id: UUID
     visitor_name: str
@@ -196,12 +213,22 @@ class AccessLogOut(BaseModel):
 
 
 class AnnouncementCreate(BaseModel):
-    title: str
+    title: str = Field(min_length=3, max_length=200)
     category: AnnouncementCategory
-    content: str
-    image_url: str | None = None
+    content: str = Field(min_length=3, max_length=10000)
+    image_url: str | None = Field(default=None, max_length=1024)
     link_url: str | None = Field(default=None, max_length=2048)
     is_important: bool = False
+
+    @field_validator("link_url")
+    @classmethod
+    def validate_link_url(cls, value: str | None) -> str | None:
+        if value is None or value == "":
+            return None
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("link_url must be a complete HTTP or HTTPS URL")
+        return value
 
 
 class AnnouncementOut(BaseModel):
@@ -220,14 +247,14 @@ class AnnouncementOut(BaseModel):
 
 
 class AnnouncementReactionRequest(BaseModel):
-    reaction: str | None = None
+    reaction: Literal["like", "dislike"] | None = None
 
 
 class ChatMessageCreate(BaseModel):
     thread_id: UUID
-    body: str
-    audio_url: str | None = None
-    audio_duration: str | None = None
+    body: str = Field(min_length=1, max_length=4000)
+    audio_url: str | None = Field(default=None, max_length=1024)
+    audio_duration: str | None = Field(default=None, pattern=r"^\d{1,6}$")
 
 
 class ChatMessageOut(BaseModel):
@@ -255,11 +282,11 @@ class StorageUploadOut(BaseModel):
 
 
 class ReportCreate(BaseModel):
-    title: str
-    description: str
+    title: str = Field(min_length=3, max_length=200)
+    description: str = Field(min_length=3, max_length=10000)
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
-    evidence_url: str | None = None
+    evidence_url: str | None = Field(default=None, max_length=1024)
 
 
 class ReportOut(BaseModel):
@@ -288,6 +315,7 @@ class EmergencyProfileOut(BaseModel):
     alergias: str | None = None
     contacto_emergencia: str | None = None
     direccion: str | None = None
+    sos_active: bool = False
 
 
 class SosToggleRequest(BaseModel):

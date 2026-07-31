@@ -7,6 +7,7 @@ class NotificationItemModel extends NotificationItem {
     required super.message,
     required super.time,
     super.isRead,
+    super.sourceType,
   });
 
   factory NotificationItemModel.fromJson(Map<String, dynamic> json) {
@@ -16,6 +17,7 @@ class NotificationItemModel extends NotificationItem {
       message: (json['message'] ?? '').toString(),
       time: (json['time'] ?? json['created_at'] ?? '').toString(),
       isRead: json['is_read'] as bool? ?? json['isRead'] as bool? ?? false,
+      sourceType: (json['source_type'] ?? json['sourceType'])?.toString(),
     );
   }
 
@@ -26,6 +28,7 @@ class NotificationItemModel extends NotificationItem {
       'message': message,
       'time': time,
       'isRead': isRead,
+      'sourceType': sourceType,
     };
   }
 }

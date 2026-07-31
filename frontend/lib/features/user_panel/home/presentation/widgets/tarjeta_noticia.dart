@@ -17,7 +17,7 @@ class TarjetaNoticia extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Card(
       elevation: 2,
       clipBehavior: Clip.antiAlias,
@@ -34,7 +34,9 @@ class TarjetaNoticia extends StatelessWidget {
           children: [
             if (imageUrl != null && imageUrl!.isNotEmpty)
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16.0)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16.0),
+                ),
                 child: Image.network(
                   imageUrl!,
                   height: 180,
@@ -46,7 +48,7 @@ class TarjetaNoticia extends StatelessWidget {
                     child: Center(
                       child: Icon(
                         Icons.broken_image_outlined,
-                        color: theme.colorScheme.onSurface.withOpacity(0.4),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                         size: 36,
                       ),
                     ),
@@ -57,7 +59,9 @@ class TarjetaNoticia extends StatelessWidget {
                       height: 180,
                       color: theme.colorScheme.surface,
                       child: Center(
-                        child: CircularProgressIndicator(color: theme.colorScheme.primary),
+                        child: CircularProgressIndicator(
+                          color: theme.colorScheme.primary,
+                        ),
                       ),
                     );
                   },
@@ -81,7 +85,7 @@ class TarjetaNoticia extends StatelessWidget {
                     fecha,
                     style: TextStyle(
                       fontSize: 13,
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ],

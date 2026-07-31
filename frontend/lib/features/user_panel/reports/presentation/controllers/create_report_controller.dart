@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../../core/network/api_error_message.dart';
 import '../../domain/entities/community_report.dart';
 import '../../domain/usecases/create_report_usecase.dart';
 
@@ -27,6 +28,7 @@ class CreateReportController extends ChangeNotifier {
 
   Future<void> obtenerUbicacion() async {
     isLoadingLocation = true;
+    errorMessage = null;
     notifyListeners();
 
     try {
@@ -56,7 +58,10 @@ class CreateReportController extends ChangeNotifier {
       longitude = position.longitude;
       hasLocation = true;
     } catch (e) {
-      errorMessage = e.toString().replaceAll('Exception: ', '');
+      errorMessage = ApiErrorMessage.from(
+        e,
+        fallback: e.toString().replaceAll('Exception: ', ''),
+      );
     } finally {
       isLoadingLocation = false;
       notifyListeners();
@@ -72,6 +77,7 @@ class CreateReportController extends ChangeNotifier {
 
   Future<void> pickImage(ImageSource source) async {
     try {
+      errorMessage = null;
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
         source: source,
@@ -101,6 +107,7 @@ class CreateReportController extends ChangeNotifier {
   void removeImage() {
     selectedImage = null;
     imageBytes = null;
+    errorMessage = null;
     notifyListeners();
   }
 

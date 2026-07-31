@@ -13,21 +13,28 @@ class ResidentModel extends ResidentEntity {
     required super.email,
     required super.phone,
     required super.avatarUrl,
+    super.status,
   });
 
   factory ResidentModel.fromJson(Map<String, dynamic> json) {
     return ResidentModel(
       id: (json['id'] ?? '').toString(),
-      tempPassword: (json['tempPassword'] ?? json['temp_password'] ?? '').toString(),
+      tempPassword: (json['tempPassword'] ?? json['temp_password'] ?? '')
+          .toString(),
       name: (json['name'] ?? json['full_name'] ?? '').toString(),
-      unit: (json['unit'] ?? json['unit_name'] ?? json['unitLabel'] ?? '').toString(),
+      unit: (json['unit'] ?? json['unit_name'] ?? json['unitLabel'] ?? '')
+          .toString(),
       bloodType: (json['bloodType'] ?? json['blood_type'] ?? '').toString(),
-      illnesses: (json['illnesses'] ?? json['conditions'] ?? 'Ninguna').toString(),
+      illnesses: (json['illnesses'] ?? json['conditions'] ?? 'Ninguna')
+          .toString(),
       allergies: (json['allergies'] ?? '').toString(),
-      emergencyContact: (json['emergencyContact'] ?? json['emergency_contact'] ?? '').toString(),
+      emergencyContact:
+          (json['emergencyContact'] ?? json['emergency_contact'] ?? '')
+              .toString(),
       email: (json['email'] ?? '').toString(),
       phone: (json['phone'] ?? '').toString(),
       avatarUrl: (json['avatarUrl'] ?? json['avatar_url'] ?? '').toString(),
+      status: (json['status'] ?? 'active').toString(),
     );
   }
 
@@ -44,6 +51,7 @@ class ResidentModel extends ResidentEntity {
       'email': email,
       'phone': phone,
       'avatarUrl': avatarUrl,
+      'status': status,
     };
   }
 }

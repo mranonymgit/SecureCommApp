@@ -11,7 +11,8 @@ class AdminDashboardStatsModel extends AdminDashboardStatsEntity {
   factory AdminDashboardStatsModel.fromJson(Map<String, dynamic> json) {
     return AdminDashboardStatsModel(
       totalResidents: json['totalResidents'] ?? json['total_residents'] ?? 0,
-      activeVisitsToday: json['activeVisitsToday'] ?? json['active_visits_today'] ?? 0,
+      activeVisitsToday:
+          json['activeVisitsToday'] ?? json['active_visits_today'] ?? 0,
       pendingReports: json['pendingReports'] ?? json['pending_reports'] ?? 0,
       activeAlerts: json['activeAlerts'] ?? json['active_alerts'] ?? 0,
     );

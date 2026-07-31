@@ -24,6 +24,7 @@ class _ReglamentoScreenState extends State<ReglamentoScreen> {
         widget.getRulesUseCase ?? GetRulesUseCase(SettingsRepositoryImpl());
     _controller = ReglamentoController(useCase);
     _controller.loadRules();
+    _controller.connectRealtime();
   }
 
   @override

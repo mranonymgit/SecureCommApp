@@ -69,9 +69,7 @@ class AppTheme {
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: primary,
-        ),
+        style: TextButton.styleFrom(foregroundColor: primary),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -81,17 +79,11 @@ class AppTheme {
         prefixIconColor: primary,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(
-            color: borderColor,
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: borderColor, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(13),
-          borderSide: BorderSide(
-            color: primary,
-            width: 2.5,
-          ),
+          borderSide: BorderSide(color: primary, width: 2.5),
         ),
       ),
       dialogTheme: DialogThemeData(
@@ -106,16 +98,27 @@ class AppTheme {
   static final ColorBlindnessTheme estandar = ColorBlindnessTheme(
     key: 'default',
     name: 'Estándar (Modo Oscuro)',
-    description: 'Paleta original de la aplicación (Fondo negro, verde y texto blanco).',
+    description:
+        'Paleta original de la aplicación (Fondo negro, verde y texto blanco).',
     themeData: _buildTheme(
-      primary: Colors.green,                  // Botones e íconos verdes
-      primaryDark: const Color(0xFF1B5E20),   // Verde oscuro para acentos secundarios
-      accent: Colors.greenAccent,             // Verde brillante para destacados
-      background: const Color.fromARGB(255, 28, 28, 28),    // Fondo totalmente negro
-      cardColor: const Color(0xFF121212),     // Tarjetas y elementos en negro elevado
-      borderColor: const Color(0xFF2E7D32),   // Borde verde oscuro
-      textColor: Colors.white,                // Letras blancas
-      secondaryTextColor: Colors.white70,     // Letras secundarias blancas con opacidad
+      primary: Colors.green, // Botones e íconos verdes
+      primaryDark: const Color(
+        0xFF1B5E20,
+      ), // Verde oscuro para acentos secundarios
+      accent: Colors.greenAccent, // Verde brillante para destacados
+      background: const Color.fromARGB(
+        255,
+        28,
+        28,
+        28,
+      ), // Fondo totalmente negro
+      cardColor: const Color(
+        0xFF121212,
+      ), // Tarjetas y elementos en negro elevado
+      borderColor: const Color(0xFF2E7D32), // Borde verde oscuro
+      textColor: Colors.white, // Letras blancas
+      secondaryTextColor:
+          Colors.white70, // Letras secundarias blancas con opacidad
     ),
   );
 

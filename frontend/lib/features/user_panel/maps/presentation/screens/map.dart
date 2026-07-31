@@ -38,6 +38,7 @@ class _MapaIncidenciasScreenState extends State<MapaIncidenciasScreen> {
         );
 
     _controller.loadIncidencias();
+    _controller.connectRealtime();
     _controller.addListener(_centerOnLatestReport);
   }
 
@@ -312,6 +313,7 @@ class _MapaIncidenciasScreenState extends State<MapaIncidenciasScreen> {
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       maxWidth: isDesktop ? 620 : double.infinity,
+                      maxHeight: MediaQuery.sizeOf(context).height * 0.68,
                     ),
                     child: incidenciaSel == null
                         ? const SizedBox.shrink()
@@ -335,7 +337,6 @@ class _MapaIncidenciasScreenState extends State<MapaIncidenciasScreen> {
                                 ],
                               ),
                               child: Column(
-                                mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Container(
@@ -391,139 +392,143 @@ class _MapaIncidenciasScreenState extends State<MapaIncidenciasScreen> {
                                       ],
                                     ),
                                   ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          children: [
-                                            _statusChip(
-                                              context,
-                                              incidenciaSel.estado,
-                                            ),
-                                            _infoChip(
-                                              context,
-                                              icon: Icons.access_time,
-                                              label: incidenciaSel.fecha,
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Text(
-                                          incidenciaSel.descripcion,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurface
-                                                .withValues(alpha: 0.75),
-                                            height: 1.45,
-                                          ),
-                                        ),
-                                        if (incidenciaSel
-                                                .evidenciaUrl
-                                                ?.isNotEmpty ??
-                                            false) ...[
-                                          const SizedBox(height: 12),
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            child: Image.network(
-                                              incidenciaSel.evidenciaUrl!,
-                                              height: 150,
-                                              width: double.infinity,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, _, _) =>
-                                                  const SizedBox(
-                                                    height: 56,
-                                                    child: Center(
-                                                      child: Text(
-                                                        'No fue posible cargar la evidencia.',
-                                                      ),
-                                                    ),
-                                                  ),
-                                            ),
-                                          ),
-                                        ],
-                                        const SizedBox(height: 12),
-                                        Text(
-                                          'Reportado por: ${incidenciaSel.reporter.isEmpty ? 'Sin dato' : incidenciaSel.reporter}',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurface
-                                                .withValues(alpha: 0.6),
-                                          ),
-                                        ),
-                                        if (widget.allowStatusChange) ...[
-                                          const SizedBox(height: 16),
-                                          Text(
-                                            'Cambiar estado',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w700,
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.onSurface,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
+                                  Flexible(
+                                    child: SingleChildScrollView(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
                                           Wrap(
                                             spacing: 8,
                                             runSpacing: 8,
                                             children: [
-                                              _buildStatusAction(
+                                              _statusChip(
                                                 context,
-                                                label: 'Pendiente',
-                                                estado:
-                                                    EstadoIncidencia.pendiente,
-                                                selected:
-                                                    incidenciaSel.estado ==
-                                                    EstadoIncidencia.pendiente,
+                                                incidenciaSel.estado,
                                               ),
-                                              _buildStatusAction(
+                                              _infoChip(
                                                 context,
-                                                label: 'Crítico',
-                                                estado:
-                                                    EstadoIncidencia.critico,
-                                                selected:
-                                                    incidenciaSel.estado ==
-                                                    EstadoIncidencia.critico,
-                                              ),
-                                              _buildStatusAction(
-                                                context,
-                                                label: 'En Proceso',
-                                                estado:
-                                                    EstadoIncidencia.enProceso,
-                                                selected:
-                                                    incidenciaSel.estado ==
-                                                    EstadoIncidencia.enProceso,
-                                              ),
-                                              _buildStatusAction(
-                                                context,
-                                                label: 'Resuelto',
-                                                estado:
-                                                    EstadoIncidencia.resuelto,
-                                                selected:
-                                                    incidenciaSel.estado ==
-                                                    EstadoIncidencia.resuelto,
+                                                icon: Icons.access_time,
+                                                label: incidenciaSel.fecha,
                                               ),
                                             ],
                                           ),
-                                          if (_controller.isUpdatingStatus) ...[
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            incidenciaSel.descripcion,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(alpha: 0.75),
+                                              height: 1.45,
+                                            ),
+                                          ),
+                                          if (incidenciaSel
+                                                  .evidenciaUrl
+                                                  ?.isNotEmpty ??
+                                              false) ...[
                                             const SizedBox(height: 12),
-                                            const LinearProgressIndicator(
-                                              minHeight: 2,
+                                            ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              child: Image.network(
+                                                incidenciaSel.evidenciaUrl!,
+                                                height: 150,
+                                                width: double.infinity,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, _, _) =>
+                                                    const SizedBox(
+                                                      height: 56,
+                                                      child: Center(
+                                                        child: Text(
+                                                          'No fue posible cargar la evidencia.',
+                                                        ),
+                                                      ),
+                                                    ),
+                                              ),
                                             ),
                                           ],
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            'Reportado por: ${incidenciaSel.reporter.isEmpty ? 'Sin dato' : incidenciaSel.reporter}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(alpha: 0.6),
+                                            ),
+                                          ),
+                                          if (widget.allowStatusChange) ...[
+                                            const SizedBox(height: 16),
+                                            Text(
+                                              'Cambiar estado',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurface,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
+                                                _buildStatusAction(
+                                                  context,
+                                                  label: 'Pendiente',
+                                                  estado: EstadoIncidencia
+                                                      .pendiente,
+                                                  selected:
+                                                      incidenciaSel.estado ==
+                                                      EstadoIncidencia
+                                                          .pendiente,
+                                                ),
+                                                _buildStatusAction(
+                                                  context,
+                                                  label: 'Crítico',
+                                                  estado:
+                                                      EstadoIncidencia.critico,
+                                                  selected:
+                                                      incidenciaSel.estado ==
+                                                      EstadoIncidencia.critico,
+                                                ),
+                                                _buildStatusAction(
+                                                  context,
+                                                  label: 'En Proceso',
+                                                  estado: EstadoIncidencia
+                                                      .enProceso,
+                                                  selected:
+                                                      incidenciaSel.estado ==
+                                                      EstadoIncidencia
+                                                          .enProceso,
+                                                ),
+                                                _buildStatusAction(
+                                                  context,
+                                                  label: 'Resuelto',
+                                                  estado:
+                                                      EstadoIncidencia.resuelto,
+                                                  selected:
+                                                      incidenciaSel.estado ==
+                                                      EstadoIncidencia.resuelto,
+                                                ),
+                                              ],
+                                            ),
+                                            if (_controller
+                                                .isUpdatingStatus) ...[
+                                              const SizedBox(height: 12),
+                                              const LinearProgressIndicator(
+                                                minHeight: 2,
+                                              ),
+                                            ],
+                                          ],
                                         ],
-                                      ],
+                                      ),
                                     ),
                                   ),
                                 ],

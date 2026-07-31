@@ -9,6 +9,7 @@ class EmergencyProfileModel extends EmergencyProfile {
     required super.alergias,
     required super.contactoEmergencia,
     required super.direccion,
+    super.sosActive,
   });
 
   factory EmergencyProfileModel.fromJson(Map<String, dynamic> json) {
@@ -16,10 +17,14 @@ class EmergencyProfileModel extends EmergencyProfile {
       nombre: (json['nombre'] ?? json['full_name'] ?? '').toString(),
       edad: json['edad'] ?? json['age'] ?? 0,
       tipoSangre: (json['tipoSangre'] ?? json['tipo_sangre'] ?? '').toString(),
-      padecimientos: (json['padecimientos'] ?? json['conditions'] ?? '').toString(),
+      padecimientos: (json['padecimientos'] ?? json['conditions'] ?? '')
+          .toString(),
       alergias: (json['alergias'] ?? '').toString(),
-      contactoEmergencia: (json['contactoEmergencia'] ?? json['contacto_emergencia'] ?? '').toString(),
+      contactoEmergencia:
+          (json['contactoEmergencia'] ?? json['contacto_emergencia'] ?? '')
+              .toString(),
       direccion: (json['direccion'] ?? json['address'] ?? '').toString(),
+      sosActive: json['sos_active'] == true,
     );
   }
 }

@@ -7,7 +7,7 @@ class AdminOverviewRepositoryImpl implements AdminOverviewRepository {
   final AdminDashboardService service;
 
   AdminOverviewRepositoryImpl({AdminDashboardService? service})
-      : service = service ?? AdminDashboardServiceImpl();
+    : service = service ?? AdminDashboardServiceImpl();
 
   @override
   Future<AdminDashboardStatsEntity> getDashboardStats() async {

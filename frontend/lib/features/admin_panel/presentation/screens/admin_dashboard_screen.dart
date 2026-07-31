@@ -10,11 +10,17 @@ import 'views/announcements_view.dart';
 import 'views/full_chat_screen.dart';
 import 'views/reports_view.dart';
 import 'views/residents_view.dart';
+import '../../../user_panel/settings/presentation/screens/notification_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final AdminDashboardController? controller;
+  final int initialIndex;
 
-  const AdminDashboardScreen({super.key, this.controller});
+  const AdminDashboardScreen({
+    super.key,
+    this.controller,
+    this.initialIndex = 0,
+  });
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -35,7 +41,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         );
 
     _controller.loadStats();
-    if (widget.controller == null) _controller.startRealtimeRefresh();
+    _controller.connectRealtime();
+    _controller.setSelectedIndex(widget.initialIndex);
   }
 
   @override
@@ -68,6 +75,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         return const RulesManagementView();
       case 8:
         return const FaqManagementView();
+      case 9:
+        return const NotificationScreen();
       default:
         return AdminOverviewView(
           controller: _controller,

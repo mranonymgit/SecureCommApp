@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../domain/entities/notification_item.dart';
 import '../../domain/usecases/get_notifications_usecase.dart';
@@ -8,7 +10,9 @@ class NotificationController extends ValueNotifier<bool> {
   final SettingsRepositoryImpl repository;
 
   List<NotificationItem> notifications = [];
-  String? errorMessage;
+  String? loadErrorMessage;
+  String? actionErrorMessage;
+  final Set<String> _pendingDeletions = <String>{};
 
   NotificationController(
     this.getNotificationsUseCase, {
@@ -18,17 +22,28 @@ class NotificationController extends ValueNotifier<bool> {
 
   Future<void> loadNotifications() async {
     value = true;
-    errorMessage = null;
+    loadErrorMessage = null;
     try {
       notifications = await getNotificationsUseCase();
     } catch (e) {
-      errorMessage = 'Error al cargar notificaciones: ${e.toString()}';
+      loadErrorMessage = 'No fue posible cargar las notificaciones.';
     } finally {
       value = false;
     }
   }
 
-  Future<void> markAsRead(String id) async {
+  Future<void> refreshSilently() async {
+    if (_pendingDeletions.isNotEmpty) return;
+    try {
+      notifications = await getNotificationsUseCase();
+      loadErrorMessage = null;
+      notifyListeners();
+    } catch (error) {
+      debugPrint('Error al sincronizar notificaciones: $error');
+    }
+  }
+
+  Future<bool> markAsRead(String id) async {
     final index = notifications.indexWhere((item) => item.id == id);
     if (index != -1) {
       final original = notifications[index];
@@ -36,26 +51,41 @@ class NotificationController extends ValueNotifier<bool> {
       notifyListeners();
       try {
         await repository.markNotificationRead(id);
+        actionErrorMessage = null;
+        return true;
       } catch (error) {
-        notifications[index] = original;
-        errorMessage = 'No se pudo actualizar la notificación.';
+        final rollbackIndex = notifications.indexWhere((item) => item.id == id);
+        if (rollbackIndex != -1) notifications[rollbackIndex] = original;
+        actionErrorMessage = 'No se pudo actualizar la notificación.';
         notifyListeners();
+        return false;
       }
+    }
+    return false;
+  }
+
+  Future<bool> deleteNotification(String id) async {
+    if (!notifications.any((item) => item.id == id) ||
+        !_pendingDeletions.add(id)) {
+      return false;
+    }
+    try {
+      await repository.deleteNotification(id);
+      actionErrorMessage = null;
+      return true;
+    } catch (error) {
+      _pendingDeletions.remove(id);
+      actionErrorMessage = 'No se pudo eliminar la notificación.';
+      notifyListeners();
+      return false;
     }
   }
 
-  Future<void> deleteNotification(String id) async {
-    final index = notifications.indexWhere((item) => item.id == id);
-    if (index == -1) return;
-    final removed = notifications.removeAt(index);
+  void completeDeletion(String id) {
+    notifications.removeWhere((item) => item.id == id);
+    _pendingDeletions.remove(id);
     notifyListeners();
-    try {
-      await repository.deleteNotification(id);
-    } catch (error) {
-      notifications.insert(index, removed);
-      errorMessage = 'No se pudo eliminar la notificación.';
-      notifyListeners();
-    }
+    unawaited(refreshSilently());
   }
 
   Future<void> markAllAsRead() async {
@@ -72,9 +102,11 @@ class NotificationController extends ValueNotifier<bool> {
       await Future.wait(
         unread.map((item) => repository.markNotificationRead(item.id)),
       );
+      actionErrorMessage = null;
     } catch (error) {
       notifications = original;
-      errorMessage = 'No se pudieron actualizar todas las notificaciones.';
+      actionErrorMessage =
+          'No se pudieron actualizar todas las notificaciones.';
       notifyListeners();
     }
   }

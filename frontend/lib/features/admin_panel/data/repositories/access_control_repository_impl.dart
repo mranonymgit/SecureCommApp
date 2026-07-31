@@ -7,7 +7,7 @@ class AccessControlRepositoryImpl implements AccessControlRepository {
   final VisitService service;
 
   AccessControlRepositoryImpl({VisitService? service})
-      : service = service ?? VisitServiceImpl();
+    : service = service ?? VisitServiceImpl();
 
   @override
   Future<List<AccessLogEntity>> getAccessLogs() async {

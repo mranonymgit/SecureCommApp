@@ -31,9 +31,7 @@ class _AparienciaScreenState extends State<AparienciaScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Apariencia y Accesibilidad'),
-      ),
+      appBar: AppBar(title: const Text('Apariencia y Accesibilidad')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Card(
@@ -44,11 +42,17 @@ class _AparienciaScreenState extends State<AparienciaScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.remove_red_eye_outlined, color: theme.colorScheme.primary),
+                    Icon(
+                      Icons.remove_red_eye_outlined,
+                      color: theme.colorScheme.primary,
+                    ),
                     const SizedBox(width: 8),
                     const Text(
                       'Modo de Color para Daltonismo',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -58,13 +62,16 @@ class _AparienciaScreenState extends State<AparienciaScreen> {
                   builder: (context, _) {
                     return Column(
                       children: AppTheme.temas.map((tema) {
-                        final bool esSeleccionado = tema.key == _currentThemeKey(_controller.value);
+                        final bool esSeleccionado =
+                            tema.key == _currentThemeKey(_controller.value);
                         return ThemeOptionTile(
                           tema: tema,
                           isSelected: esSeleccionado,
                           onSelect: (nuevoTema) async {
                             if (nuevoTema != null) {
-                              await _controller.changeTheme(_themeFromKey(nuevoTema.key));
+                              await _controller.changeTheme(
+                                _themeFromKey(nuevoTema.key),
+                              );
                               appThemeNotifier.cambiarTema(nuevoTema);
                             }
                           },

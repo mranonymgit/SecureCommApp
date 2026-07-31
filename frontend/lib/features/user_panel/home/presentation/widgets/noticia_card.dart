@@ -6,12 +6,14 @@ class NoticiaCard extends StatefulWidget {
   final NewsPost noticia;
   final VoidCallback onLike;
   final VoidCallback onDislike;
+  final bool isReactionPending;
 
   const NoticiaCard({
     super.key,
     required this.noticia,
     required this.onLike,
     required this.onDislike,
+    this.isReactionPending = false,
   });
 
   @override
@@ -97,7 +99,7 @@ class _NoticiaCardState extends State<NoticiaCard> {
                     Text(
                       '${noticia.fecha} • ${noticia.hora}',
                       style: TextStyle(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                         fontSize: 12,
                       ),
                     ),
@@ -123,7 +125,7 @@ class _NoticiaCardState extends State<NoticiaCard> {
                 ? TextOverflow.visible
                 : TextOverflow.ellipsis,
             style: TextStyle(
-              color: theme.colorScheme.onSurface.withOpacity(0.8),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
               fontSize: 14,
               height: 1.4,
             ),
@@ -167,14 +169,14 @@ class _NoticiaCardState extends State<NoticiaCard> {
                         children: [
                           Icon(
                             Icons.broken_image,
-                            color: theme.colorScheme.onSurface.withOpacity(0.4),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                             size: 40,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Error al cargar la imagen',
                             style: TextStyle(
-                              color: theme.colorScheme.onSurface.withOpacity(
+                              color: theme.colorScheme.onSurface.withValues(alpha: 
                                 0.4,
                               ),
                               fontSize: 12,
@@ -218,7 +220,7 @@ class _NoticiaCardState extends State<NoticiaCard> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               InkWell(
-                onTap: widget.onLike,
+                onTap: widget.isReactionPending ? null : widget.onLike,
                 borderRadius: BorderRadius.circular(20),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -233,7 +235,7 @@ class _NoticiaCardState extends State<NoticiaCard> {
                             : Icons.thumb_up_outlined,
                         color: noticia.userReaction == 'like'
                             ? theme.colorScheme.secondary
-                            : theme.colorScheme.onSurface.withOpacity(0.6),
+                            : theme.colorScheme.onSurface.withValues(alpha: 0.6),
                         size: 20,
                       ),
                       const SizedBox(width: 6),
@@ -242,7 +244,7 @@ class _NoticiaCardState extends State<NoticiaCard> {
                         style: TextStyle(
                           color: noticia.userReaction == 'like'
                               ? theme.colorScheme.secondary
-                              : theme.colorScheme.onSurface.withOpacity(0.6),
+                              : theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -252,7 +254,7 @@ class _NoticiaCardState extends State<NoticiaCard> {
               ),
               const SizedBox(width: 16),
               InkWell(
-                onTap: widget.onDislike,
+                onTap: widget.isReactionPending ? null : widget.onDislike,
                 borderRadius: BorderRadius.circular(20),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -267,7 +269,7 @@ class _NoticiaCardState extends State<NoticiaCard> {
                             : Icons.thumb_down_outlined,
                         color: noticia.userReaction == 'dislike'
                             ? theme.colorScheme.error
-                            : theme.colorScheme.onSurface.withOpacity(0.6),
+                            : theme.colorScheme.onSurface.withValues(alpha: 0.6),
                         size: 20,
                       ),
                       const SizedBox(width: 6),
@@ -276,7 +278,7 @@ class _NoticiaCardState extends State<NoticiaCard> {
                         style: TextStyle(
                           color: noticia.userReaction == 'dislike'
                               ? theme.colorScheme.error
-                              : theme.colorScheme.onSurface.withOpacity(0.6),
+                              : theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -284,6 +286,14 @@ class _NoticiaCardState extends State<NoticiaCard> {
                   ),
                 ),
               ),
+              if (widget.isReactionPending) ...[
+                const SizedBox(width: 12),
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ],
             ],
           ),
         ],

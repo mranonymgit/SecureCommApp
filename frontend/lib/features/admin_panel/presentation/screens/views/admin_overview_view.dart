@@ -28,7 +28,8 @@ class _AdminOverviewViewState extends State<AdminOverviewView> {
   @override
   void initState() {
     super.initState();
-    _controller = widget.controller ??
+    _controller =
+        widget.controller ??
         AdminDashboardController(
           getDashboardStatsUseCase: GetAdminDashboardStatsUseCase(
             AdminOverviewRepositoryImpl(),
@@ -90,7 +91,9 @@ class _AdminOverviewViewState extends State<AdminOverviewView> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
                   child: AdminErrorState(
-                    message: _controller.errorMessage ?? 'No se pudieron cargar las métricas.',
+                    message:
+                        _controller.errorMessage ??
+                        'No se pudieron cargar las métricas.',
                     onRetry: _controller.loadStats,
                   ),
                 ),
@@ -103,7 +106,10 @@ class _AdminOverviewViewState extends State<AdminOverviewView> {
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 20,
+                    ),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
@@ -149,12 +155,19 @@ class _AdminOverviewViewState extends State<AdminOverviewView> {
                               SizedBox(height: 4),
                               Text(
                                 'Acceso directo a la conversación general de todos los vecinos',
-                                style: TextStyle(color: Colors.white70, fontSize: 13),
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 20),
+                        const Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.white70,
+                          size: 20,
+                        ),
                       ],
                     ),
                   ),
@@ -169,7 +182,8 @@ class _AdminOverviewViewState extends State<AdminOverviewView> {
                 AdminEmptyState(
                   icon: Icons.query_stats_outlined,
                   title: 'Métricas no disponibles',
-                  message: 'Conecta la consulta real para mostrar los indicadores del panel.',
+                  message:
+                      'Conecta la consulta real para mostrar los indicadores del panel.',
                   actionLabel: 'Reintentar',
                   onAction: _controller.loadStats,
                 )
@@ -179,8 +193,8 @@ class _AdminOverviewViewState extends State<AdminOverviewView> {
                     final crossAxisCount = constraints.maxWidth > 1100
                         ? 4
                         : constraints.maxWidth > 650
-                            ? 2
-                            : 1;
+                        ? 2
+                        : 1;
 
                     return GridView.count(
                       shrinkWrap: true,

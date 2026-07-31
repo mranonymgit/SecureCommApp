@@ -56,7 +56,9 @@ class _InteractiveHelpCardState extends State<InteractiveHelpCard> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -82,7 +84,9 @@ class _InteractiveHelpCardState extends State<InteractiveHelpCard> {
                             widget.subtitle,
                             style: TextStyle(
                               fontSize: 13,
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -93,7 +97,9 @@ class _InteractiveHelpCardState extends State<InteractiveHelpCard> {
                     Icon(
                       Icons.arrow_forward_ios,
                       size: 16,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.38),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.38),
                     ),
                   ],
                 ),
@@ -170,7 +176,9 @@ class _ContactInfoCardState extends State<ContactInfoCard> {
                               'Canales de atención directa para el residente.',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.6),
                               ),
                             ),
                           ],
@@ -178,10 +186,7 @@ class _ContactInfoCardState extends State<ContactInfoCard> {
                       ),
                     ],
                   ),
-                  Divider(
-                    height: 24,
-                    color: Theme.of(context).dividerColor,
-                  ),
+                  Divider(height: 24, color: Theme.of(context).dividerColor),
                   Row(
                     children: [
                       Icon(
@@ -194,7 +199,9 @@ class _ContactInfoCardState extends State<ContactInfoCard> {
                         'soporte@vecinal.com',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                     ],
@@ -212,7 +219,9 @@ class _ContactInfoCardState extends State<ContactInfoCard> {
                         '+52 800 123 4567',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                     ],
@@ -265,7 +274,9 @@ class _ReportProblemCardState extends State<ReportProblemCard> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Mensaje enviado con éxito. Gracias por tus comentarios.'),
+          content: Text(
+            'Mensaje enviado con éxito. Gracias por tus comentarios.',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -311,7 +322,7 @@ class _ReportProblemCardState extends State<ReportProblemCard> {
               'Si experimentas un fallo técnico o tienes alguna sugerencia, envíanos un mensaje.',
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 16),
@@ -324,11 +335,15 @@ class _ReportProblemCardState extends State<ReportProblemCard> {
               decoration: InputDecoration(
                 labelText: 'Nombre completo',
                 labelStyle: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
                 prefixIcon: Icon(
                   Icons.person,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.54),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.54),
                 ),
                 filled: true,
                 fillColor: Theme.of(context).scaffoldBackgroundColor,
@@ -355,11 +370,15 @@ class _ReportProblemCardState extends State<ReportProblemCard> {
               decoration: InputDecoration(
                 labelText: 'Correo o Teléfono',
                 labelStyle: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
                 prefixIcon: Icon(
                   Icons.contact_mail,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.54),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.54),
                 ),
                 filled: true,
                 fillColor: Theme.of(context).scaffoldBackgroundColor,
@@ -387,11 +406,15 @@ class _ReportProblemCardState extends State<ReportProblemCard> {
               decoration: InputDecoration(
                 labelText: 'Descripción del problema',
                 labelStyle: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
                 prefixIcon: Icon(
                   Icons.message,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.54),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.54),
                 ),
                 filled: true,
                 fillColor: Theme.of(context).scaffoldBackgroundColor,

@@ -1,5 +1,5 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../data/repositories/announcements_repository_impl.dart';
@@ -7,6 +7,7 @@ import '../../../domain/usecases/create_announcement_usecase.dart';
 import '../../../domain/usecases/get_announcements_usecase.dart';
 import '../../controllers/announcements_controller.dart';
 import '../../widgets/admin_state_feedback.dart';
+import '../../../../../core/presentation/app_toast.dart';
 
 class AnnouncementsView extends StatefulWidget {
   final AnnouncementsController? controller;
@@ -19,7 +20,6 @@ class AnnouncementsView extends StatefulWidget {
 
 class _AnnouncementsViewState extends State<AnnouncementsView> {
   late final AnnouncementsController _controller;
-  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -33,15 +33,11 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
         );
 
     _controller.fetchAnnouncements();
-    _refreshTimer = Timer.periodic(
-      const Duration(seconds: 10),
-      (_) => _controller.fetchAnnouncements(),
-    );
+    _controller.connectRealtime();
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
@@ -49,16 +45,24 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
   void _showAddAnnouncementDialog() {
     final titleCtrl = TextEditingController();
     final contentCtrl = TextEditingController();
-    final imageCtrl = TextEditingController();
     final linkCtrl = TextEditingController();
     XFile? selectedImage;
+    Uint8List? selectedImageBytes;
     String category = 'General';
     bool isImportant = false;
+    bool isPublishing = false;
 
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setModalState) {
+          final link = linkCtrl.text.trim();
+          final linkUri = Uri.tryParse(link);
+          final validLink =
+              link.isEmpty ||
+              (linkUri != null &&
+                  (linkUri.scheme == 'https' || linkUri.scheme == 'http') &&
+                  linkUri.host.isNotEmpty);
           return AlertDialog(
             backgroundColor: const Color(0xFF1E1E1E),
             title: const Text(
@@ -92,7 +96,19 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                         imageQuality: 85,
                       );
                       if (image == null) return;
-                      setModalState(() => selectedImage = image);
+                      final bytes = await image.readAsBytes();
+                      if (!context.mounted) return;
+                      if (bytes.lengthInBytes > 5 * 1024 * 1024) {
+                        AppToast.error(
+                          context,
+                          'La imagen supera el límite de 5 MB.',
+                        );
+                        return;
+                      }
+                      setModalState(() {
+                        selectedImage = image;
+                        selectedImageBytes = bytes;
+                      });
                     },
                     icon: const Icon(Icons.image_outlined),
                     label: Text(
@@ -101,6 +117,18 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                           : selectedImage!.name,
                     ),
                   ),
+                  if (selectedImageBytes != null) ...[
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.memory(
+                        selectedImageBytes!,
+                        width: double.infinity,
+                        height: 150,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: category,
@@ -131,24 +159,8 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                   ),
                   const SizedBox(height: 12),
                   TextField(
-                    controller: imageCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'URL de la Imagen (Opcional)',
-                      hintText: 'https://ejemplo.com/imagen.jpg',
-                      hintStyle: TextStyle(color: Colors.white24),
-                      labelStyle: TextStyle(color: Colors.white60),
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white24),
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.blueAccent),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
                     controller: linkCtrl,
+                    onChanged: (_) => setModalState(() {}),
                     style: const TextStyle(color: Colors.white),
                     decoration: const InputDecoration(
                       labelText: 'Enlace externo (opcional)',
@@ -156,6 +168,45 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                       labelStyle: TextStyle(color: Colors.white60),
                     ),
                   ),
+                  if (link.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF292929),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: validLink
+                              ? Colors.blueAccent.withValues(alpha: 0.55)
+                              : Colors.redAccent,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            validLink ? Icons.link : Icons.link_off,
+                            color: validLink
+                                ? Colors.blueAccent
+                                : Colors.redAccent,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              validLink
+                                  ? 'Vista previa: ${linkUri!.host}'
+                                  : 'Usa un enlace completo con http:// o https://',
+                              style: TextStyle(
+                                color: validLink
+                                    ? Colors.white70
+                                    : Colors.redAccent,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   TextField(
                     controller: contentCtrl,
@@ -204,42 +255,98 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,
                 ),
-                onPressed: () async {
-                  if (titleCtrl.text.isNotEmpty &&
-                      contentCtrl.text.isNotEmpty) {
-                    String? imageUrl = imageCtrl.text.trim().isNotEmpty
-                        ? imageCtrl.text.trim()
-                        : null;
-                    if (selectedImage != null) {
-                      imageUrl = await _controller.uploadImage(
-                        await selectedImage!.readAsBytes(),
-                        selectedImage!.name,
-                      );
-                      if (imageUrl == null) return;
-                    }
-                    _controller.addAnnouncement(
-                      title: titleCtrl.text.trim(),
-                      category: category,
-                      content: contentCtrl.text.trim(),
-                      imageUrl: imageUrl,
-                      linkUrl: linkCtrl.text.trim().isEmpty
-                          ? null
-                          : linkCtrl.text.trim(),
-                      isImportant: isImportant,
-                    );
-                    Navigator.pop(dialogContext);
-                  }
-                },
-                child: const Text(
-                  'Publicar',
-                  style: TextStyle(color: Colors.white),
-                ),
+                onPressed: isPublishing
+                    ? null
+                    : () async {
+                        if (titleCtrl.text.trim().isEmpty ||
+                            contentCtrl.text.trim().isEmpty) {
+                          AppToast.error(
+                            context,
+                            'Completa el título y el contenido.',
+                          );
+                          return;
+                        }
+                        if (!validLink) {
+                          AppToast.error(
+                            context,
+                            'Ingresa un enlace externo válido.',
+                          );
+                          return;
+                        }
+                        setModalState(() => isPublishing = true);
+                        String? imageUrl;
+                        if (selectedImage != null &&
+                            selectedImageBytes != null) {
+                          imageUrl = await _controller.uploadImage(
+                            selectedImageBytes!,
+                            selectedImage!.name,
+                          );
+                          if (imageUrl == null) {
+                            if (context.mounted) {
+                              AppToast.show(
+                                context,
+                                _controller.actionErrorMessage ??
+                                    'No fue posible adjuntar la imagen.',
+                                type: AppToastType.error,
+                              );
+                            }
+                            if (context.mounted) {
+                              setModalState(() => isPublishing = false);
+                            }
+                            return;
+                          }
+                        }
+                        final created = await _controller.addAnnouncement(
+                          title: titleCtrl.text.trim(),
+                          category: category,
+                          content: contentCtrl.text.trim(),
+                          imageUrl: imageUrl,
+                          linkUrl: linkCtrl.text.trim().isEmpty
+                              ? null
+                              : linkCtrl.text.trim(),
+                          isImportant: isImportant,
+                        );
+                        if (!context.mounted) return;
+                        if (created) {
+                          Navigator.pop(dialogContext);
+                          AppToast.show(
+                            context,
+                            'Comunicado publicado.',
+                            type: AppToastType.success,
+                          );
+                        } else {
+                          setModalState(() => isPublishing = false);
+                          AppToast.show(
+                            context,
+                            _controller.actionErrorMessage ??
+                                'No fue posible publicar el comunicado.',
+                            type: AppToastType.error,
+                          );
+                        }
+                      },
+                child: isPublishing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Publicar',
+                        style: TextStyle(color: Colors.white),
+                      ),
               ),
             ],
           );
         },
       ),
-    );
+    ).whenComplete(() {
+      titleCtrl.dispose();
+      contentCtrl.dispose();
+      linkCtrl.dispose();
+    });
   }
 
   @override
@@ -459,8 +566,8 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                                       vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.blueAccent.withValues(
-                                        alpha: 0.2,
+                                      color: Colors.blueAccent.withValues(alpha: 
+                                        0.2,
                                       ),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
@@ -481,8 +588,8 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.redAccent.withValues(
-                                          alpha: 0.2,
+                                        color: Colors.redAccent.withValues(alpha: 
+                                          0.2,
                                         ),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
@@ -561,16 +668,22 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                                       color: Colors.white54,
                                       size: 20,
                                     ),
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Enlace del comunicado copiado',
-                                          ),
-                                        ),
+                                    onPressed: () async {
+                                      final shareText = [
+                                        item.title,
+                                        item.content,
+                                        if (item.linkUrl?.isNotEmpty ?? false)
+                                          item.linkUrl!,
+                                      ].join('\n\n');
+                                      await Clipboard.setData(
+                                        ClipboardData(text: shareText),
                                       );
+                                      if (context.mounted) {
+                                        AppToast.success(
+                                          context,
+                                          'Comunicado copiado.',
+                                        );
+                                      }
                                     },
                                   ),
                                 ],

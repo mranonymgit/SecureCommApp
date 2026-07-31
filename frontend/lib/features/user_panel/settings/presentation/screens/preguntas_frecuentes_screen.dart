@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/presentation/app_toast.dart';
 import '../../data/repositories/settings_repository_impl.dart';
 import '../../domain/usecases/get_faqs_usecase.dart';
 import '../controllers/preguntas_frecuentes_controller.dart';
@@ -23,9 +24,10 @@ class _PreguntasFrecuentesScreenState extends State<PreguntasFrecuentesScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = PreguntasFrecuentesController(
-      GetFaqsUseCase(SettingsRepositoryImpl()),
-    )..loadFaqs();
+    _controller =
+        PreguntasFrecuentesController(GetFaqsUseCase(SettingsRepositoryImpl()))
+          ..loadFaqs()
+          ..connectRealtime();
   }
 
   @override
@@ -45,20 +47,14 @@ class _PreguntasFrecuentesScreenState extends State<PreguntasFrecuentesScreen> {
       _nuevaPreguntaController.text.trim(),
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Tu pregunta fue enviada al comité.'
-              : (_controller.errorMessage ?? 'No se pudo enviar la pregunta.'),
-        ),
-        backgroundColor: ok
-            ? Colors.green
-            : Theme.of(context).colorScheme.error,
-      ),
-    );
     if (ok) {
       _nuevaPreguntaController.clear();
+      AppToast.success(context, 'Tu pregunta fue enviada al comité.');
+    } else {
+      AppToast.error(
+        context,
+        _controller.actionErrorMessage ?? 'No se pudo enviar la pregunta.',
+      );
     }
   }
 
@@ -120,8 +116,8 @@ class _PreguntasFrecuentesScreenState extends State<PreguntasFrecuentesScreen> {
                       child: Text(
                         'No se encontraron resultados.',
                         style: TextStyle(
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.6,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 
+                            0.6,
                           ),
                         ),
                       ),

@@ -35,7 +35,7 @@ class AcercaDeTab extends StatelessWidget {
             'Versión 1.0.0 (Fase Beta)',
             style: TextStyle(
               fontSize: 14,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(height: 24),
@@ -65,7 +65,9 @@ class AcercaDeTab extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       height: 1.5,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.87),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.87),
                     ),
                     textAlign: TextAlign.justify,
                   ),
@@ -98,19 +100,22 @@ class AcercaDeTab extends StatelessWidget {
                   const FeatureTile(
                     icon: Icons.chat_bubble_outline,
                     title: 'Comunicación Directa',
-                    subtitle: 'Chat comunitario y avisos del comité en tiempo real.',
+                    subtitle:
+                        'Chat comunitario y avisos del comité en tiempo real.',
                   ),
                   Divider(color: Theme.of(context).dividerColor),
                   const FeatureTile(
                     icon: Icons.report_problem_outlined,
                     title: 'Reportes Vecinales',
-                    subtitle: 'Gestiona incidencias y da seguimiento a su solución.',
+                    subtitle:
+                        'Gestiona incidencias y da seguimiento a su solución.',
                   ),
                   Divider(color: Theme.of(context).dividerColor),
                   const FeatureTile(
                     icon: Icons.security,
                     title: 'Comunidad Segura',
-                    subtitle: 'Acceso exclusivo a residentes verificación de identidad.',
+                    subtitle:
+                        'Acceso exclusivo a residentes verificación de identidad.',
                   ),
                 ],
               ),
@@ -121,7 +126,7 @@ class AcercaDeTab extends StatelessWidget {
             '© 2026 SCA. Todos los derechos reservados.',
             style: TextStyle(
               fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
         ],
@@ -146,11 +151,7 @@ class FeatureTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: Theme.of(context).colorScheme.primary,
-          size: 28,
-        ),
+        Icon(icon, color: Theme.of(context).colorScheme.primary, size: 28),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
@@ -168,7 +169,9 @@ class FeatureTile extends StatelessWidget {
                 subtitle,
                 style: TextStyle(
                   fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
             ],
@@ -242,7 +245,7 @@ class TerminosYDatosTab extends StatelessWidget {
         style: TextStyle(
           fontSize: 14,
           height: 1.6,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.87),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.87),
         ),
         textAlign: TextAlign.justify,
       ),

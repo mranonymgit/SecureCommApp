@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -14,6 +15,8 @@ class ApiClient {
 
   final http.Client _client;
   final String _baseUrl;
+  static const Duration _requestTimeout = Duration(seconds: 30);
+  static const Duration _uploadTimeout = Duration(seconds: 60);
 
   Map<String, String> _headers({bool json = true}) {
     final headers = <String, String>{};
@@ -36,10 +39,9 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? queryParameters,
   }) async {
-    final response = await _client.get(
-      _uri(path, queryParameters),
-      headers: _headers(),
-    );
+    final response = await _client
+        .get(_uri(path, queryParameters), headers: _headers())
+        .timeout(_requestTimeout);
     final decoded = _decodeResponse(response);
     if (decoded is Map<String, dynamic>) return decoded;
     throw ApiException(response.statusCode, 'Expected a JSON object response');
@@ -49,10 +51,9 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? queryParameters,
   }) async {
-    final response = await _client.get(
-      _uri(path, queryParameters),
-      headers: _headers(),
-    );
+    final response = await _client
+        .get(_uri(path, queryParameters), headers: _headers())
+        .timeout(_requestTimeout);
     final decoded = _decodeResponse(response);
     final items = decoded is Map<String, dynamic>
         ? decoded['data'] ?? decoded['items'] ?? decoded['results']
@@ -65,11 +66,9 @@ class ApiClient {
     String path,
     Map<String, dynamic> body,
   ) async {
-    final response = await _client.post(
-      _uri(path),
-      headers: _headers(),
-      body: jsonEncode(body),
-    );
+    final response = await _client
+        .post(_uri(path), headers: _headers(), body: jsonEncode(body))
+        .timeout(_requestTimeout);
     return _decodeResponse(response);
   }
 
@@ -77,16 +76,16 @@ class ApiClient {
     String path,
     Map<String, dynamic> body,
   ) async {
-    final response = await _client.patch(
-      _uri(path),
-      headers: _headers(),
-      body: jsonEncode(body),
-    );
+    final response = await _client
+        .patch(_uri(path), headers: _headers(), body: jsonEncode(body))
+        .timeout(_requestTimeout);
     return _decodeResponse(response);
   }
 
   Future<Map<String, dynamic>> deleteJson(String path) async {
-    final response = await _client.delete(_uri(path), headers: _headers());
+    final response = await _client
+        .delete(_uri(path), headers: _headers())
+        .timeout(_requestTimeout);
     return _decodeResponse(response);
   }
 
@@ -106,24 +105,61 @@ class ApiClient {
         contentType: MediaType.parse(contentType),
       ),
     );
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
+    final streamedResponse = await request.send().timeout(_uploadTimeout);
+    final response = await http.Response.fromStream(
+      streamedResponse,
+    ).timeout(_uploadTimeout);
     return _decodeResponse(response);
   }
 
   dynamic _decodeResponse(http.Response response) {
     final body = response.body.isEmpty ? '{}' : response.body;
-    final decoded = jsonDecode(body);
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(body);
+    } on FormatException {
+      throw ApiException(
+        response.statusCode,
+        response.statusCode >= 200 && response.statusCode < 300
+            ? 'El servidor devolvió una respuesta no válida.'
+            : 'El servidor no pudo completar la solicitud.',
+      );
+    }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      final message = decoded is Map<String, dynamic>
-          ? (decoded['detail']?.toString() ??
-                decoded['message']?.toString() ??
-                'Request failed')
-          : 'Request failed';
+      final message = _extractErrorMessage(decoded);
       throw ApiException(response.statusCode, message);
     }
 
     return decoded;
+  }
+
+  String _extractErrorMessage(dynamic decoded) {
+    if (decoded is! Map<String, dynamic>) {
+      return 'La solicitud no pudo completarse.';
+    }
+    final detail = decoded['detail'];
+    if (detail is String && detail.isNotEmpty) return detail;
+    if (detail is List && detail.isNotEmpty && detail.first is Map) {
+      final validation = (detail.first as Map).cast<String, dynamic>();
+      final location = validation['loc'];
+      final field = location is List && location.isNotEmpty
+          ? location.last.toString()
+          : 'campo';
+      final translatedField = switch (field) {
+        'email' => 'correo electrónico',
+        'phone' => 'teléfono',
+        'initial_password' => 'contraseña temporal',
+        'full_name' => 'nombre',
+        _ => field.replaceAll('_', ' '),
+      };
+      final rawMessage = (validation['msg'] ?? '').toString();
+      if (field == 'email') return 'Ingresa un correo electrónico válido.';
+      return rawMessage.isEmpty
+          ? 'Revisa el campo $translatedField.'
+          : '$translatedField: $rawMessage';
+    }
+    return (decoded['message'] ?? 'La solicitud no pudo completarse.')
+        .toString();
   }
 }

@@ -1,0 +1,45 @@
+services:
+  # Backend Service
+  - type: web
+    name: sca-backend
+    env: docker
+    dockerContext: backend
+    dockerfilePath: backend/Dockerfile
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: SUPABASE_PROJECT_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+
+  # Frontend Service
+  - type: web
+    name: sca-frontend
+    env: docker
+    dockerContext: frontend
+    dockerfilePath: frontend/Dockerfile
+    plan: free
+    # Note: On Render, to pass build-time arguments to Docker, 
+    # you can use the environment variables if they are set in the dashboard,
+    # but for Flutter's dart-define we need them during 'flutter build'.
+    envVars:
+      - key: SCA_API_URL
+        value: "https://sca-backend.onrender.com" # Update this after backend is deployed
+      - key: SCA_COMMUNITY_SLUG
+        value: "sca"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false

@@ -5,7 +5,8 @@ import '../services/report_service.dart';
 class ReportsRepositoryImpl implements ReportsRepository {
   final ReportService service;
 
-  ReportsRepositoryImpl({ReportService? service}) : service = service ?? ReportServiceImpl();
+  ReportsRepositoryImpl({ReportService? service})
+    : service = service ?? ReportServiceImpl();
 
   @override
   Future<List<ReportEntity>> getReports() async {

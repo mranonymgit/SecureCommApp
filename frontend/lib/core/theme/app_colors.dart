@@ -10,14 +10,14 @@ class AppColors {
 
   // --- CORRECCIÓN DE FORMULARIOS Y CAJAS DE TEXTO ---
   // 1. Cambiamos el verde fosforescente por un gris suave súper limpio para los campos:
-  static const Color fieldFill = Color(0xFFF4F4F4); 
+  static const Color fieldFill = Color(0xFFF4F4F4);
 
   static const Color fieldBorder = Color(0x9376966B);
   static const Color fieldBorderAlt = Color(0x948B8896);
   static const Color fieldFocused = Color(0xD11D9712);
 
   // 2. Cambiamos el texto transparente por un negro/gris oscuro legible en toda la app:
-  static const Color textBody = Color(0xFF222222); 
+  static const Color textBody = Color(0xFF222222);
 
   static const Color alert = Colors.redAccent;
 }

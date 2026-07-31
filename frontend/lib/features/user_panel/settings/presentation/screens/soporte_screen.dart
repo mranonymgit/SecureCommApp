@@ -66,9 +66,7 @@ class SoporteScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 16),
-                          const Expanded(
-                            child: ReportProblemCard(),
-                          ),
+                          const Expanded(child: ReportProblemCard()),
                         ],
                       )
                     : Column(

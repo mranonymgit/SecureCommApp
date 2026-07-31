@@ -5,7 +5,8 @@ from math import asin, cos, radians, sin, sqrt
 from uuid import UUID, uuid4
 
 import httpx
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -66,6 +67,13 @@ class AuthRepository:
         if user is None:
             return False
         user.password_hash = new_password_hash
+        return True
+
+    async def request_password_change_by_email(self, community_slug: str, email: str, password_hash: str) -> bool:
+        user = await self.get_user_for_login(community_slug, email)
+        if user is None or user.role != UserRole.resident:
+            return False
+        await self.create_password_change_request(user.community_id, user.id, password_hash)
         return True
 
     async def create_password_change_request(self, community_id: UUID, user_id: UUID, password_hash: str) -> PasswordChangeApproval:
@@ -244,6 +252,39 @@ class ResidentRepository:
         self.session.add(profile)
         return user
 
+    async def set_active(self, community_id: UUID, user_id: UUID, active: bool) -> User | None:
+        result = await self.session.execute(select(User).where(User.community_id == community_id, User.id == user_id, User.role == UserRole.resident, User.deleted_at.is_(None)))
+        user = result.scalars().first()
+        if user is None:
+            return None
+        user.status = AccountStatus.active if active else AccountStatus.suspended
+        return user
+
+    async def soft_delete(self, community_id: UUID, user_id: UUID) -> bool:
+        result = await self.session.execute(select(User).where(User.community_id == community_id, User.id == user_id, User.role == UserRole.resident, User.deleted_at.is_(None)))
+        user = result.scalars().first()
+        if user is None:
+            return False
+        deleted_at = datetime.now(timezone.utc)
+        user.deleted_at = deleted_at
+        user.status = AccountStatus.archived
+        for model in (
+            ResidentProfile,
+            UserPreference,
+            UserNotification,
+            PasswordChangeApproval,
+        ):
+            await self.session.execute(
+                update(model)
+                .where(
+                    model.community_id == community_id,
+                    model.user_id == user_id,
+                    model.deleted_at.is_(None),
+                )
+                .values(deleted_at=deleted_at)
+            )
+        return True
+
 
 class AccessRepository:
     def __init__(self, session: AsyncSession):
@@ -273,6 +314,18 @@ class AnnouncementRepository:
         return list(result.scalars().all())
 
     async def create(self, *, community_id: UUID, author_id: UUID, payload) -> Announcement:
+        author = await self.session.get(User, author_id)
+        if (
+            author is None
+            or author.community_id != community_id
+            or author.status != AccountStatus.active
+            or author.deleted_at is not None
+        ):
+            raise ValueError("Announcement author is not available in this community")
+        if payload.image_url and not payload.image_url.startswith(
+            f"communities/{community_id}/announcements/{author_id}/"
+        ):
+            raise ValueError("Announcement image does not belong to this user")
         item = Announcement(
             id=uuid4(),
             community_id=community_id,
@@ -284,8 +337,11 @@ class AnnouncementRepository:
             link_url=payload.link_url,
             is_important=payload.is_important,
         )
+        # Keep the author relationship available for the response after commit.
+        item.created_by_user = author
         self.session.add(item)
         await _notify_role(self.session, community_id, UserRole.resident, "Nuevo aviso", f"Administración publicó: {payload.title}", "announcement")
+        await self.session.flush()
         return item
 
     async def reaction_summary(self, community_id: UUID, announcement_id: UUID, user_id: UUID) -> dict[str, int | str | None]:
@@ -294,6 +350,7 @@ class AnnouncementRepository:
                 AnnouncementReaction.community_id == community_id,
                 AnnouncementReaction.announcement_id == announcement_id,
                 AnnouncementReaction.reaction == "like",
+                AnnouncementReaction.deleted_at.is_(None),
             )
         )
         dislikes = await self.session.scalar(
@@ -301,6 +358,7 @@ class AnnouncementRepository:
                 AnnouncementReaction.community_id == community_id,
                 AnnouncementReaction.announcement_id == announcement_id,
                 AnnouncementReaction.reaction == "dislike",
+                AnnouncementReaction.deleted_at.is_(None),
             )
         )
         user_reaction = await self.session.scalar(
@@ -308,6 +366,7 @@ class AnnouncementRepository:
                 AnnouncementReaction.community_id == community_id,
                 AnnouncementReaction.announcement_id == announcement_id,
                 AnnouncementReaction.user_id == user_id,
+                AnnouncementReaction.deleted_at.is_(None),
             )
         )
         return {
@@ -317,6 +376,17 @@ class AnnouncementRepository:
         }
 
     async def set_reaction(self, *, community_id: UUID, announcement_id: UUID, user_id: UUID, reaction: str | None) -> dict[str, int | str | None]:
+        if reaction not in {None, "", "like", "dislike"}:
+            raise ValueError("Unsupported announcement reaction")
+        announcement_exists = await self.session.scalar(
+            select(Announcement.id).where(
+                Announcement.id == announcement_id,
+                Announcement.community_id == community_id,
+                Announcement.deleted_at.is_(None),
+            )
+        )
+        if announcement_exists is None:
+            raise LookupError("Announcement not found in this community")
         result = await self.session.execute(
             select(AnnouncementReaction).where(
                 AnnouncementReaction.community_id == community_id,
@@ -328,20 +398,32 @@ class AnnouncementRepository:
         if reaction is None or reaction == "":
             if item is not None:
                 item.deleted_at = datetime.now(timezone.utc)
+            await self.session.flush()
             return await self.reaction_summary(community_id, announcement_id, user_id)
 
-        if item is None:
-            item = AnnouncementReaction(
+        await self.session.execute(
+            pg_insert(AnnouncementReaction)
+            .values(
                 id=uuid4(),
                 community_id=community_id,
                 announcement_id=announcement_id,
                 user_id=user_id,
                 reaction=reaction,
             )
-            self.session.add(item)
-        else:
-            item.reaction = reaction
-            item.deleted_at = None
+            .on_conflict_do_update(
+                index_elements=[
+                    AnnouncementReaction.community_id,
+                    AnnouncementReaction.announcement_id,
+                    AnnouncementReaction.user_id,
+                ],
+                set_={
+                    "reaction": reaction,
+                    "deleted_at": None,
+                    "updated_at": func.now(),
+                },
+            )
+        )
+        await self.session.flush()
         return await self.reaction_summary(community_id, announcement_id, user_id)
 
 
@@ -360,8 +442,27 @@ class ChatRepository:
 
     async def send_message(self, *, community_id: UUID, sender_id: UUID, is_admin: bool, payload) -> ChatMessage:
         sender = await self.session.get(User, sender_id)
-        if sender is None or sender.community_id != community_id or sender.deleted_at is not None:
+        if (
+            sender is None
+            or sender.community_id != community_id
+            or sender.status != AccountStatus.active
+            or sender.deleted_at is not None
+        ):
             raise ValueError("Chat sender is not available in this community")
+        thread = await self.session.scalar(
+            select(ChatThread).where(
+                ChatThread.id == payload.thread_id,
+                ChatThread.community_id == community_id,
+                ChatThread.thread_type == ChatThreadType.community,
+                ChatThread.deleted_at.is_(None),
+            )
+        )
+        if thread is None:
+            raise LookupError("Chat thread not found in this community")
+        if payload.audio_url and not payload.audio_url.startswith(
+            f"communities/{community_id}/chat/{sender_id}/"
+        ):
+            raise ValueError("Chat audio does not belong to this user")
 
         msg = ChatMessage(
             id=uuid4(),
@@ -379,6 +480,7 @@ class ChatRepository:
         self.session.add(msg)
         recipients = await self.session.execute(select(User.id).where(User.community_id == community_id, User.id != sender_id, User.status == AccountStatus.active, User.deleted_at.is_(None)))
         self.session.add_all([UserNotification(id=uuid4(), community_id=community_id, user_id=user_id, title="Nuevo mensaje comunitario", message=f"{sender.full_name}: {'envió un audio' if payload.audio_url else payload.body[:180]}", source_type="chat") for user_id in recipients.scalars().all()])
+        await self.session.flush()
         return msg
 
     async def summary(self, community_id: UUID) -> str:
@@ -481,6 +583,18 @@ class ReportRepository:
         return list(result.scalars().all())
 
     async def create(self, *, community_id: UUID, reporter_id: UUID, payload) -> Report:
+        reporter = await self.session.get(User, reporter_id)
+        if (
+            reporter is None
+            or reporter.community_id != community_id
+            or reporter.status != AccountStatus.active
+            or reporter.deleted_at is not None
+        ):
+            raise ValueError("Report author is not active in this community")
+        if payload.evidence_url and not payload.evidence_url.startswith(
+            f"communities/{community_id}/reports/{reporter_id}/"
+        ):
+            raise ValueError("Report evidence does not belong to this user")
         report = Report(
             id=uuid4(),
             community_id=community_id,
@@ -492,8 +606,10 @@ class ReportRepository:
             evidence_url=payload.evidence_url,
             status=ReportStatus.pending,
         )
+        report.reporter_user = reporter
         self.session.add(report)
         await _notify_role(self.session, community_id, UserRole.admin, "Nuevo reporte", f"Se reportó: {payload.title}", "report")
+        await self.session.flush()
         return report
 
     async def update_status(self, *, community_id: UUID, report_id: UUID, status: ReportStatus) -> Report | None:
@@ -517,6 +633,16 @@ class ReportRepository:
         if not row:
             return {}
         user, profile, unit = row
+        active_sos = await self.session.scalar(
+            select(func.count())
+            .select_from(PanicAlert)
+            .where(
+                PanicAlert.community_id == community_id,
+                PanicAlert.resident_user_id == user_id,
+                PanicAlert.status == PanicStatus.active,
+                PanicAlert.deleted_at.is_(None),
+            )
+        )
         return {
             "nombre": user.full_name,
             "edad": None,
@@ -525,11 +651,26 @@ class ReportRepository:
             "alergias": profile.allergies,
             "contacto_emergencia": profile.emergency_contact_name,
             "direccion": f"{unit.tower} - {unit.unit_number}",
+            "sos_active": bool(active_sos),
         }
 
     async def toggle_sos(self, *, community_id: UUID, resident_id: UUID, actor_id: UUID, active: bool) -> tuple[PanicAlert, str]:
+        await self.session.execute(
+            text("select pg_advisory_xact_lock(hashtextextended(:resident_key, 0))"),
+            {"resident_key": f"{community_id}:{resident_id}:sos"},
+        )
+        active_alert_query = (
+            select(PanicAlert)
+            .where(
+                PanicAlert.community_id == community_id,
+                PanicAlert.resident_user_id == resident_id,
+                PanicAlert.status == PanicStatus.active,
+                PanicAlert.deleted_at.is_(None),
+            )
+            .order_by(PanicAlert.created_at.desc())
+        )
         if not active:
-            result = await self.session.execute(select(PanicAlert).where(PanicAlert.community_id == community_id, PanicAlert.resident_user_id == resident_id, PanicAlert.status == PanicStatus.active, PanicAlert.deleted_at.is_(None)).order_by(PanicAlert.created_at.desc()))
+            result = await self.session.execute(active_alert_query)
             alert = result.scalars().first()
             if alert is None:
                 alert = PanicAlert(id=uuid4(), community_id=community_id, resident_user_id=resident_id, activated_by_user_id=actor_id, status=PanicStatus.resolved, message="SOS resolved from the app")
@@ -537,6 +678,10 @@ class ReportRepository:
             else:
                 alert.status = PanicStatus.resolved
             return alert, "resolved"
+        result = await self.session.execute(active_alert_query)
+        existing_alert = result.scalars().first()
+        if existing_alert is not None:
+            return existing_alert, "active"
         alert = PanicAlert(
             id=uuid4(),
             community_id=community_id,
@@ -649,6 +794,10 @@ class UserProfileRepository:
         if payload.phone is not None:
             user.phone = payload.phone
         if payload.avatar_url is not None:
+            if not payload.avatar_url.startswith(
+                f"communities/{community_id}/avatars/{user_id}/"
+            ):
+                raise ValueError("Avatar does not belong to this user")
             user.avatar_url = payload.avatar_url
 
         if prefs is None:

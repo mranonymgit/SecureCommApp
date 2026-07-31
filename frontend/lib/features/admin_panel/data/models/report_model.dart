@@ -16,13 +16,17 @@ class ReportModel extends ReportEntity {
   });
 
   factory ReportModel.fromJson(Map<String, dynamic> json) {
-    final latitude = _parseDouble(json['latitude']) ?? _parseCoords(json['coords'])?.$1;
-    final longitude = _parseDouble(json['longitude']) ?? _parseCoords(json['coords'])?.$2;
+    final latitude =
+        _parseDouble(json['latitude']) ?? _parseCoords(json['coords'])?.$1;
+    final longitude =
+        _parseDouble(json['longitude']) ?? _parseCoords(json['coords'])?.$2;
 
     return ReportModel(
       id: (json['id'] ?? '').toString(),
       title: (json['title'] ?? '').toString(),
-      location: (json['location'] ?? json['location_text'] ?? 'Ubicación registrada').toString(),
+      location:
+          (json['location'] ?? json['location_text'] ?? 'Ubicación registrada')
+              .toString(),
       coords: (json['coords'] ?? json['coordinates'] ?? '').toString(),
       status: (json['status'] ?? 'pending').toString(),
       reporter: (json['reporter'] ?? json['reporter_name'] ?? '').toString(),

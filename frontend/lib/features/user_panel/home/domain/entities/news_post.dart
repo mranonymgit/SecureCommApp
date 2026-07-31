@@ -51,3 +51,15 @@ class NewsPost {
     );
   }
 }
+
+class NewsReactionResult {
+  const NewsReactionResult({
+    required this.likes,
+    required this.dislikes,
+    required this.userReaction,
+  });
+
+  final int likes;
+  final int dislikes;
+  final String? userReaction;
+}

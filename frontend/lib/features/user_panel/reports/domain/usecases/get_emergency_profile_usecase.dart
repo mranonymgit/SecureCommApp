@@ -5,5 +5,6 @@ class GetEmergencyProfileUseCase {
   final ReportsRepository repository;
   GetEmergencyProfileUseCase(this.repository);
 
-  Future<EmergencyProfile> call() async => await repository.getEmergencyProfile();
+  Future<EmergencyProfile> call() async =>
+      await repository.getEmergencyProfile();
 }

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
@@ -7,6 +6,7 @@ import '../../../domain/usecases/get_reports_usecase.dart';
 import '../../../domain/usecases/update_report_status_usecase.dart';
 import '../../controllers/reports_controller.dart';
 import '../../widgets/admin_state_feedback.dart';
+import '../../../../../core/presentation/app_toast.dart';
 
 class ReportsView extends StatefulWidget {
   final ReportsController? controller;
@@ -19,7 +19,6 @@ class ReportsView extends StatefulWidget {
 
 class _ReportsViewState extends State<ReportsView> {
   late final ReportsController _controller;
-  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -33,15 +32,11 @@ class _ReportsViewState extends State<ReportsView> {
         );
 
     _controller.loadReports();
-    _refreshTimer = Timer.periodic(
-      const Duration(seconds: 10),
-      (_) => _controller.loadReports(),
-    );
+    _controller.connectRealtime();
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
@@ -193,8 +188,8 @@ class _ReportsViewState extends State<ReportsView> {
                                       'El reporte existe en la base de datos, pero todavía no tiene latitud y longitud.',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        color: Colors.white38.withValues(
-                                          alpha: 0.95,
+                                        color: Colors.white38.withValues(alpha: 
+                                          0.95,
                                         ),
                                         fontSize: 11,
                                       ),
@@ -267,8 +262,18 @@ class _ReportsViewState extends State<ReportsView> {
                             selected: isSelected,
                             selectedColor: stColor,
                             backgroundColor: const Color(0xFF2A2A2A),
-                            onSelected: (_) {
-                              _controller.changeStatus(currentReport.id, value);
+                            onSelected: (_) async {
+                              final error = await _controller.changeStatus(
+                                currentReport.id,
+                                value,
+                              );
+                              if (error != null && context.mounted) {
+                                AppToast.show(
+                                  context,
+                                  error,
+                                  type: AppToastType.error,
+                                );
+                              }
                             },
                           );
                         }).toList(),

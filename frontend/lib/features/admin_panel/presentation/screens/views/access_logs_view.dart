@@ -29,6 +29,7 @@ class _AccessLogsViewState extends State<AccessLogsView> {
         );
 
     _controller.fetchLogs();
+    _controller.connectRealtime();
   }
 
   @override

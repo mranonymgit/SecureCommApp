@@ -38,7 +38,7 @@ class FaqSubmitFormCard extends StatelessWidget {
               'Envía tu duda para responderla y agregarla a la lista.',
               style: TextStyle(
                 fontSize: 13,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 12),
@@ -51,7 +51,7 @@ class FaqSubmitFormCard extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: 'Escribe tu pregunta aquí...',
                 hintStyle: TextStyle(
-                  color: theme.colorScheme.onSurface.withOpacity(0.38),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.38),
                 ),
                 filled: true,
                 fillColor: theme.scaffoldBackgroundColor,

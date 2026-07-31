@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
@@ -22,11 +21,15 @@ import 'package:frontend/features/auth/presentation/screens/login_screen.dart';
 import 'package:frontend/core/network/api_session.dart';
 import 'package:frontend/core/network/api_client.dart';
 import 'package:frontend/features/user_panel/reports/presentation/screens/emergency_screen.dart';
+import 'package:frontend/core/services/notification_realtime_service.dart';
+import 'package:frontend/core/services/community_realtime_service.dart';
+import 'package:frontend/core/presentation/app_toast.dart';
 
 class HomeScreen extends StatefulWidget {
   final HomeController? controller;
+  final int initialIndex;
 
-  const HomeScreen({super.key, this.controller});
+  const HomeScreen({super.key, this.controller, this.initialIndex = 1});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -35,7 +38,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late final HomeController _controller;
   late final CreateReportController _reportController;
-  Timer? _sosTimer;
+  final NotificationRealtimeService _notificationRealtime =
+      NotificationRealtimeService();
   bool _sosDialogVisible = false;
 
   @override
@@ -52,18 +56,18 @@ class _HomeScreenState extends State<HomeScreen> {
       CreateReportUseCase(ReportsRepositoryImpl()),
     );
 
+    _controller.currentIndex = widget.initialIndex;
+
     _controller.loadNews();
-    _sosTimer = Timer.periodic(
-      const Duration(seconds: 8),
-      (_) => _checkSosProximity(),
-    );
+    _controller.connectRealtime();
+    _notificationRealtime.subscribe(_checkSosProximity);
     _checkSosProximity();
   }
 
   @override
   void dispose() {
     _reportController.disposeControllers();
-    _sosTimer?.cancel();
+    _notificationRealtime.dispose();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
@@ -116,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } catch (_) {
-      // The next polling interval retries without interrupting the resident.
+      // The next database notification retries without interrupting the user.
     }
   }
 
@@ -163,7 +167,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               TextButton(
-                onPressed: () {
+                onPressed: () async {
+                  await CommunityRealtimeService.instance.disconnect();
+                  if (!context.mounted) return;
                   ApiSession.instance.clear();
                   Navigator.pushAndRemoveUntil(
                     context,
@@ -306,8 +312,19 @@ class _HomeScreenState extends State<HomeScreen> {
           final noticia = _controller.newsPosts[index];
           return NoticiaCard(
             noticia: noticia,
-            onLike: () => _controller.toggleLike(noticia.id),
-            onDislike: () => _controller.toggleDislike(noticia.id),
+            isReactionPending: _controller.isReactionPending(noticia.id),
+            onLike: () async {
+              final error = await _controller.toggleLike(noticia.id);
+              if (error != null && context.mounted) {
+                AppToast.show(context, error, type: AppToastType.error);
+              }
+            },
+            onDislike: () async {
+              final error = await _controller.toggleDislike(noticia.id);
+              if (error != null && context.mounted) {
+                AppToast.show(context, error, type: AppToastType.error);
+              }
+            },
           );
         },
       ),

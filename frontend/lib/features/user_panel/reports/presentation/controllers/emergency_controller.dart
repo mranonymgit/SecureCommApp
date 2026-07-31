@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../../core/network/api_error_message.dart';
 import '../../domain/entities/emergency_profile.dart';
 import '../../domain/usecases/get_emergency_profile_usecase.dart';
 import '../../domain/usecases/trigger_sos_alert_usecase.dart';
@@ -16,31 +17,41 @@ class EmergencyController extends ChangeNotifier {
   bool emergencyActive = false;
   bool isLoading = true;
   EmergencyProfile? profile;
-  String? errorMessage;
+  String? loadErrorMessage;
+  String? actionErrorMessage;
 
   Future<void> loadProfile() async {
     isLoading = true;
+    loadErrorMessage = null;
     notifyListeners();
     try {
       profile = await getProfileUseCase();
+      emergencyActive = profile?.sosActive ?? false;
     } catch (e) {
-      errorMessage = 'Error al cargar perfil de emergencia: ${e.toString()}';
+      loadErrorMessage = 'No fue posible cargar el perfil de emergencia.';
     } finally {
       isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> toggleEmergency() async {
+  Future<void> activateEmergency() => _setEmergency(true);
+
+  Future<void> deactivateEmergency() => _setEmergency(false);
+
+  Future<void> _setEmergency(bool active) async {
     final previousState = emergencyActive;
-    emergencyActive = !previousState;
-    errorMessage = null;
+    emergencyActive = active;
+    actionErrorMessage = null;
     notifyListeners();
     try {
-      await triggerSosAlertUseCase(active: emergencyActive);
+      await triggerSosAlertUseCase(active: active);
     } catch (e) {
       emergencyActive = previousState;
-      errorMessage = 'No se pudo registrar la alerta SOS.';
+      actionErrorMessage = ApiErrorMessage.from(
+        e,
+        fallback: 'No se pudo registrar la alerta SOS.',
+      );
       notifyListeners();
     }
   }
