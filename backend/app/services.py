@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .core.security import create_access_token, verify_password
+from .core.security import create_access_token, hash_password, verify_password
 from .models import UserRole
 from .repositories import (
     AccessRepository,
@@ -38,6 +38,18 @@ class AuthService:
 
     async def change_password(self, community_id: UUID, user_id: UUID, new_password: str) -> bool:
         return await self.repo.update_password(community_id, user_id, hash_password(new_password))
+
+    async def request_password_change(self, community_id: UUID, user_id: UUID, new_password: str):
+        return await self.repo.create_password_change_request(community_id, user_id, hash_password(new_password))
+
+    async def list_password_change_requests(self, community_id: UUID):
+        return await self.repo.list_password_change_requests(community_id)
+
+    async def review_password_change_request(self, community_id: UUID, request_id: UUID, reviewer_id: UUID, approved: bool):
+        item = await self.repo.review_password_change_request(community_id, request_id, reviewer_id, approved)
+        if item is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Password change request not found or already reviewed")
+        return item
 
 
 class DashboardService:
@@ -135,6 +147,9 @@ class ReportService:
     async def toggle_sos(self, *, community_id: UUID, resident_id: UUID, actor_id: UUID, active: bool):
         return await self.repo.toggle_sos(community_id=community_id, resident_id=resident_id, actor_id=actor_id, active=active)
 
+    async def sos_proximity(self, *, community_id: UUID, user_id: UUID, is_admin: bool):
+        return await self.repo.sos_proximity(community_id, user_id, is_admin)
+
 
 class UserProfileService:
     def __init__(self, session: AsyncSession):
@@ -145,6 +160,21 @@ class UserProfileService:
 
     async def update_profile(self, community_id: UUID, user_id: UUID, payload):
         return await self.repo.update_profile(community_id, user_id, payload)
+
+    async def create_rule(self, community_id: UUID, payload):
+        return await self.repo.create_rule(community_id, payload)
+
+    async def create_faq(self, community_id: UUID, payload):
+        return await self.repo.create_faq(community_id, payload)
+
+    async def list_faq_questions(self, community_id: UUID):
+        return await self.repo.list_faq_questions(community_id)
+
+    async def answer_faq_question(self, community_id: UUID, question_id: UUID, answer: str):
+        item = await self.repo.answer_faq_question(community_id, question_id, answer)
+        if item is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="FAQ question not found or already answered")
+        return item
 
     async def get_preferences(self, community_id: UUID, user_id: UUID):
         return await self.repo.get_preferences(community_id, user_id)

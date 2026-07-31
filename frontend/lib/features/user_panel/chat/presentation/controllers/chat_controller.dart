@@ -1,4 +1,6 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../../../../core/network/api_client.dart';
 import '../../domain/entities/mensaje_chat.dart';
 import '../../domain/usecases/get_mensajes_usecase.dart';
 import '../../domain/usecases/enviar_mensaje_usecase.dart';
@@ -25,7 +27,6 @@ class ChatController extends ChangeNotifier {
   bool estaBuscando = false;
   String filtroTexto = '';
   DateTime? filtroFecha;
-  bool grabandoAudio = false;
 
   Future<void> cargarMensajes() async {
     isLoading = true;
@@ -61,11 +62,6 @@ class ChatController extends ChangeNotifier {
   void setFiltroFecha(DateTime? fecha) {
     filtroFecha = fecha;
     if (fecha != null) estaBuscando = true;
-    notifyListeners();
-  }
-
-  void setGrabandoAudio(bool valor) {
-    grabandoAudio = valor;
     notifyListeners();
   }
 
@@ -118,11 +114,47 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  void reportarAudioNoDisponible() {
-    grabandoAudio = false;
-    errorMessage =
-        'El envío de audio requiere integrar almacenamiento y grabación reales.';
-    notifyListeners();
+  Future<bool> enviarAudio(Uint8List bytes, String filename) async {
+    try {
+      final extension = filename.toLowerCase();
+      final contentType = extension.endsWith('.m4a')
+          ? 'audio/mp4'
+          : extension.endsWith('.ogg')
+          ? 'audio/ogg'
+          : extension.endsWith('.webm')
+          ? 'audio/webm'
+          : extension.endsWith('.wav')
+          ? 'audio/wav'
+          : 'audio/mpeg';
+      final upload = await ApiClient().uploadBytes(
+        '/api/storage/chat-audio',
+        bytes: bytes,
+        filename: filename,
+        contentType: contentType,
+      );
+      final saved = await enviarMensajeUseCase(
+        MensajeChat(
+          id: '',
+          usuarioId: '',
+          nombreUsuario: '',
+          avatarUrl: '',
+          tipoUsuario: TipoUsuario.usuario,
+          texto: 'Audio',
+          audioUrl: (upload['object_path'] ?? '').toString(),
+          fechaHora: DateTime.now(),
+          esMio: true,
+        ),
+      );
+      mensajes = [...mensajes, saved];
+      errorMessage = null;
+      notifyListeners();
+      return true;
+    } catch (error) {
+      errorMessage = 'No fue posible enviar el audio.';
+      debugPrint('Error al enviar audio: $error');
+      notifyListeners();
+      return false;
+    }
   }
 
   void hacerScrollAlFinal() {

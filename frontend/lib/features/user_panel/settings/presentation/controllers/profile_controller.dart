@@ -10,7 +10,8 @@ import '../../domain/entities/user_profile.dart';
 import '../../domain/entities/user_preferences.dart';
 
 class ProfileController extends ChangeNotifier {
-  ProfileController({SettingsRepositoryImpl? repository}) : _repository = repository ?? SettingsRepositoryImpl();
+  ProfileController({SettingsRepositoryImpl? repository})
+    : _repository = repository ?? SettingsRepositoryImpl();
 
   final SettingsRepositoryImpl _repository;
   final TextEditingController nameController = TextEditingController();
@@ -60,7 +61,8 @@ class ProfileController extends ChangeNotifier {
       if (image == null) return;
       selectedImage = image;
       selectedImageBytes = await image.readAsBytes();
-      avatarDataUrl = 'data:image/${image.name.toLowerCase().endsWith('.png') ? 'png' : 'jpeg'};base64,${base64Encode(selectedImageBytes!)}';
+      avatarDataUrl =
+          'data:image/${image.name.toLowerCase().endsWith('.png') ? 'png' : 'jpeg'};base64,${base64Encode(selectedImageBytes!)}';
     } catch (e) {
       errorMessage = 'No se pudo seleccionar la foto.';
     } finally {
@@ -77,10 +79,15 @@ class ProfileController extends ChangeNotifier {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         throw Exception('Permiso de ubicación denegado.');
       }
-      final position = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
       latitude = position.latitude;
       longitude = position.longitude;
       notifyListeners();
@@ -95,20 +102,31 @@ class ProfileController extends ChangeNotifier {
     errorMessage = null;
     notifyListeners();
     try {
+      final avatarUrl = selectedImageBytes == null
+          ? avatarDataUrl
+          : await _repository.uploadAvatar(
+              selectedImageBytes!,
+              selectedImage?.name ?? 'avatar.jpg',
+            );
       final updated = await _repository.updateProfile(
         UserProfile(
           id: '',
           fullName: nameController.text.trim(),
           email: emailController.text.trim(),
           phone: phoneController.text.trim(),
-          avatarUrl: avatarDataUrl,
+          avatarUrl: avatarUrl,
           address: addressController.text.trim(),
           latitude: latitude,
           longitude: longitude,
         ),
       );
       final prefs = await _repository.updatePreferences(
-        (preferences ?? const UserPreferences(themeMode: 'default', notificationsEnabled: true, language: 'es'))
+        (preferences ??
+                const UserPreferences(
+                  themeMode: 'default',
+                  notificationsEnabled: true,
+                  language: 'es',
+                ))
             .copyWith(
               address: addressController.text.trim(),
               latitude: latitude,

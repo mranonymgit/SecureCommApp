@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
@@ -18,6 +19,7 @@ class ReportsView extends StatefulWidget {
 
 class _ReportsViewState extends State<ReportsView> {
   late final ReportsController _controller;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -31,10 +33,15 @@ class _ReportsViewState extends State<ReportsView> {
         );
 
     _controller.loadReports();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _controller.loadReports(),
+    );
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
@@ -85,6 +92,9 @@ class _ReportsViewState extends State<ReportsView> {
           final mapCenter = hasCoordinates
               ? LatLng(currentReport.latitude!, currentReport.longitude!)
               : const LatLng(19.432608, -99.133209);
+          final dialogWidth = MediaQuery.sizeOf(context).width > 640
+              ? 520.0
+              : MediaQuery.sizeOf(context).width - 96.0;
 
           return AlertDialog(
             backgroundColor: const Color(0xFF1E1E1E),
@@ -117,7 +127,7 @@ class _ReportsViewState extends State<ReportsView> {
                   const SizedBox(height: 16),
                   Container(
                     height: 220,
-                    width: double.infinity,
+                    width: dialogWidth,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.white24),
@@ -195,6 +205,35 @@ class _ReportsViewState extends State<ReportsView> {
                             ),
                     ),
                   ),
+                  if (currentReport.evidenceUrl?.isNotEmpty ?? false) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Evidencia adjunta',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        currentReport.evidenceUrl!,
+                        width: dialogWidth,
+                        height: 180,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const SizedBox(
+                          height: 80,
+                          child: Center(
+                            child: Text(
+                              'No fue posible cargar la evidencia.',
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   const Text(
                     'Cambiar Estado (Admin):',

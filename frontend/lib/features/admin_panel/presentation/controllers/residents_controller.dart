@@ -41,7 +41,7 @@ class ResidentsController extends ChangeNotifier {
     }
   }
 
-  Future<void> createResident({
+  Future<bool> createResident({
     required String name,
     required String unit,
     required String initialPassword,
@@ -71,10 +71,12 @@ class ResidentsController extends ChangeNotifier {
       _residents.insert(0, added);
       _errorMessage = null;
       notifyListeners();
+      return true;
     } catch (e) {
       _errorMessage = 'No fue posible crear el residente.';
       debugPrint('Error al agregar residente: $e');
       notifyListeners();
+      return false;
     }
   }
 }

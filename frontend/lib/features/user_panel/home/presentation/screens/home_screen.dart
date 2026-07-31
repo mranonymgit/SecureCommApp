@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
@@ -19,6 +20,7 @@ import 'package:frontend/features/user_panel/settings/presentation/screens/setti
 import 'package:frontend/features/user_panel/maps/presentation/screens/map.dart';
 import 'package:frontend/features/auth/presentation/screens/login_screen.dart';
 import 'package:frontend/core/network/api_session.dart';
+import 'package:frontend/core/network/api_client.dart';
 import 'package:frontend/features/user_panel/reports/presentation/screens/emergency_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -33,6 +35,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late final HomeController _controller;
   late final CreateReportController _reportController;
+  Timer? _sosTimer;
+  bool _sosDialogVisible = false;
 
   @override
   void initState() {
@@ -49,13 +53,71 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     _controller.loadNews();
+    _sosTimer = Timer.periodic(
+      const Duration(seconds: 8),
+      (_) => _checkSosProximity(),
+    );
+    _checkSosProximity();
   }
 
   @override
   void dispose() {
     _reportController.disposeControllers();
+    _sosTimer?.cancel();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkSosProximity() async {
+    try {
+      final state = await ApiClient().getJson('/api/me/sos/proximity');
+      final active = state['active'] == true;
+      final nearby = state['level'] == 'critical_nearby';
+      if (!active) {
+        _sosDialogVisible = false;
+        return;
+      }
+      if (nearby && mounted && !_sosDialogVisible) {
+        _sosDialogVisible = true;
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFFB71C1C),
+            title: const Row(
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.white,
+                  size: 32,
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'SOS cercano',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              (state['message'] ??
+                      'Un residente cercano necesita ayuda. Actúa con precaución y contacta a emergencias si es necesario.')
+                  .toString(),
+              style: const TextStyle(color: Colors.white, height: 1.4),
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Entendido'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (_) {
+      // The next polling interval retries without interrupting the resident.
+    }
   }
 
   void cerrarSesion(BuildContext context) {

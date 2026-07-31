@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_colors.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ReproductorAudioWidget extends StatelessWidget {
   final Duration duracion;
   final bool esMio;
+  final String audioUrl;
 
   const ReproductorAudioWidget({
     super.key,
     required this.duracion,
     required this.esMio,
+    required this.audioUrl,
   });
 
   @override
@@ -16,10 +19,13 @@ class ReproductorAudioWidget extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(
-          Icons.play_arrow,
-          color: Colors.white,
-          size: 26,
+        IconButton(
+          tooltip: 'Reproducir audio',
+          icon: const Icon(Icons.play_arrow, color: Colors.white, size: 26),
+          onPressed: () => launchUrl(
+            Uri.parse(audioUrl),
+            mode: LaunchMode.externalApplication,
+          ),
         ),
         const SizedBox(width: 6),
         Expanded(
@@ -32,10 +38,7 @@ class ReproductorAudioWidget extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           '0:${duracion.inSeconds.toString().padLeft(2, '0')}',
-          style: const TextStyle(
-            fontSize: 11,
-            color: Colors.white70,
-          ),
+          style: const TextStyle(fontSize: 11, color: Colors.white70),
         ),
       ],
     );

@@ -9,6 +9,7 @@ class AnnouncementModel extends AnnouncementEntity {
     required super.author,
     required super.content,
     super.imageUrl,
+    super.linkUrl,
     required super.isImportant,
   });
 
@@ -18,9 +19,11 @@ class AnnouncementModel extends AnnouncementEntity {
       title: (json['title'] ?? '').toString(),
       category: (json['category'] ?? 'general').toString(),
       date: (json['date'] ?? json['created_at'] ?? '').toString(),
-      author: (json['author'] ?? json['author_name'] ?? 'Administración').toString(),
+      author: (json['author'] ?? json['author_name'] ?? 'Administración')
+          .toString(),
       content: (json['content'] ?? '').toString(),
       imageUrl: json['imageUrl'] ?? json['image_url'],
+      linkUrl: json['linkUrl'] ?? json['link_url'],
       isImportant: json['isImportant'] ?? json['is_important'] ?? false,
     );
   }
@@ -34,6 +37,7 @@ class AnnouncementModel extends AnnouncementEntity {
       'author': author,
       'content': content,
       'imageUrl': imageUrl,
+      'linkUrl': linkUrl,
       'isImportant': isImportant,
     };
   }

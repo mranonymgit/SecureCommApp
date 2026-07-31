@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../data/repositories/announcements_repository_impl.dart';
 import '../../../domain/usecases/create_announcement_usecase.dart';
 import '../../../domain/usecases/get_announcements_usecase.dart';
@@ -16,22 +19,29 @@ class AnnouncementsView extends StatefulWidget {
 
 class _AnnouncementsViewState extends State<AnnouncementsView> {
   late final AnnouncementsController _controller;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     final repo = AnnouncementsRepositoryImpl();
-    _controller = widget.controller ??
+    _controller =
+        widget.controller ??
         AnnouncementsController(
           getAnnouncementsUseCase: GetAnnouncementsUseCase(repo),
           createAnnouncementUseCase: CreateAnnouncementUseCase(repo),
         );
 
     _controller.fetchAnnouncements();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _controller.fetchAnnouncements(),
+    );
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
@@ -40,6 +50,8 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
     final titleCtrl = TextEditingController();
     final contentCtrl = TextEditingController();
     final imageCtrl = TextEditingController();
+    final linkCtrl = TextEditingController();
+    XFile? selectedImage;
     String category = 'General';
     bool isImportant = false;
 
@@ -49,7 +61,10 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
         builder: (context, setModalState) {
           return AlertDialog(
             backgroundColor: const Color(0xFF1E1E1E),
-            title: const Text('Nuevo Comunicado / Aviso', style: TextStyle(color: Colors.white)),
+            title: const Text(
+              'Nuevo Comunicado / Aviso',
+              style: TextStyle(color: Colors.white),
+            ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -61,8 +76,29 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                     decoration: const InputDecoration(
                       labelText: 'Título del Comunicado',
                       labelStyle: TextStyle(color: Colors.white60),
-                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.blueAccent)),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white24),
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.blueAccent),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final image = await ImagePicker().pickImage(
+                        source: ImageSource.gallery,
+                        imageQuality: 85,
+                      );
+                      if (image == null) return;
+                      setModalState(() => selectedImage = image);
+                    },
+                    icon: const Icon(Icons.image_outlined),
+                    label: Text(
+                      selectedImage == null
+                          ? 'Adjuntar imagen desde el dispositivo'
+                          : selectedImage!.name,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -74,9 +110,21 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                       labelText: 'Categoría',
                       labelStyle: TextStyle(color: Colors.white60),
                     ),
-                    items: ['General', 'Mantenimiento', 'Reunión', 'Seguridad', 'Urgente']
-                        .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-                        .toList(),
+                    items:
+                        [
+                              'General',
+                              'Mantenimiento',
+                              'Reunión',
+                              'Seguridad',
+                              'Urgente',
+                            ]
+                            .map(
+                              (cat) => DropdownMenuItem(
+                                value: cat,
+                                child: Text(cat),
+                              ),
+                            )
+                            .toList(),
                     onChanged: (val) {
                       if (val != null) setModalState(() => category = val);
                     },
@@ -90,8 +138,22 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                       hintText: 'https://ejemplo.com/imagen.jpg',
                       hintStyle: TextStyle(color: Colors.white24),
                       labelStyle: TextStyle(color: Colors.white60),
-                      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                      focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.blueAccent)),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white24),
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.blueAccent),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: linkCtrl,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Enlace externo (opcional)',
+                      hintText: 'https://ejemplo.com',
+                      labelStyle: TextStyle(color: Colors.white60),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -103,8 +165,12 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                       labelText: 'Contenido del Comunicado',
                       labelStyle: TextStyle(color: Colors.white60),
                       alignLabelWithHint: true,
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.blueAccent)),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white24),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.blueAccent),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -117,7 +183,10 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                           setModalState(() => isImportant = val ?? false);
                         },
                       ),
-                      const Text('Marcar como Importante', style: TextStyle(color: Colors.white70)),
+                      const Text(
+                        'Marcar como Importante',
+                        style: TextStyle(color: Colors.white70),
+                      ),
                     ],
                   ),
                 ],
@@ -126,23 +195,45 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+                child: const Text(
+                  'Cancelar',
+                  style: TextStyle(color: Colors.white54),
+                ),
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-                onPressed: () {
-                  if (titleCtrl.text.isNotEmpty && contentCtrl.text.isNotEmpty) {
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                ),
+                onPressed: () async {
+                  if (titleCtrl.text.isNotEmpty &&
+                      contentCtrl.text.isNotEmpty) {
+                    String? imageUrl = imageCtrl.text.trim().isNotEmpty
+                        ? imageCtrl.text.trim()
+                        : null;
+                    if (selectedImage != null) {
+                      imageUrl = await _controller.uploadImage(
+                        await selectedImage!.readAsBytes(),
+                        selectedImage!.name,
+                      );
+                      if (imageUrl == null) return;
+                    }
                     _controller.addAnnouncement(
                       title: titleCtrl.text.trim(),
                       category: category,
                       content: contentCtrl.text.trim(),
-                      imageUrl: imageCtrl.text.trim().isNotEmpty ? imageCtrl.text.trim() : null,
+                      imageUrl: imageUrl,
+                      linkUrl: linkCtrl.text.trim().isEmpty
+                          ? null
+                          : linkCtrl.text.trim(),
                       isImportant: isImportant,
                     );
                     Navigator.pop(dialogContext);
                   }
                 },
-                child: const Text('Publicar', style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Publicar',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           );
@@ -169,7 +260,11 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                   children: [
                     const Text(
                       'Avisos y Comunicados',
-                      style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     const Text(
@@ -183,13 +278,18 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blueAccent,
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                         onPressed: _showAddAnnouncementDialog,
                         icon: const Icon(Icons.campaign, color: Colors.white),
                         label: const Text(
                           'Nuevo Comunicado',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -206,7 +306,11 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                       children: [
                         Text(
                           'Avisos y Comunicados',
-                          style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         SizedBox(height: 4),
                         Text(
@@ -220,13 +324,19 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blueAccent,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                     onPressed: _showAddAnnouncementDialog,
                     icon: const Icon(Icons.campaign, color: Colors.white),
                     label: const Text(
                       'Nuevo Comunicado',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -245,7 +355,9 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
 
               if (_controller.hasError) {
                 return AdminErrorState(
-                  message: _controller.errorMessage ?? 'No se pudieron cargar los comunicados.',
+                  message:
+                      _controller.errorMessage ??
+                      'No se pudieron cargar los comunicados.',
                   onRetry: _controller.fetchAnnouncements,
                 );
               }
@@ -254,7 +366,8 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                 return AdminEmptyState(
                   icon: Icons.campaign_outlined,
                   title: 'Sin comunicados',
-                  message: 'Aún no hay avisos publicados desde la base de datos.',
+                  message:
+                      'Aún no hay avisos publicados desde la base de datos.',
                   actionLabel: 'Reintentar',
                   onAction: _controller.fetchAnnouncements,
                 );
@@ -266,7 +379,8 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                 itemCount: _controller.announcements.length,
                 itemBuilder: (context, index) {
                   final item = _controller.announcements[index];
-                  final hasImage = item.imageUrl != null && item.imageUrl!.isNotEmpty;
+                  final hasImage =
+                      item.imageUrl != null && item.imageUrl!.isNotEmpty;
 
                   return Card(
                     color: const Color(0xFF1E1E1E),
@@ -275,7 +389,10 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                       side: item.isImportant
-                          ? const BorderSide(color: Colors.redAccent, width: 1.5)
+                          ? const BorderSide(
+                              color: Colors.redAccent,
+                              width: 1.5,
+                            )
                           : BorderSide.none,
                     ),
                     child: Column(
@@ -294,7 +411,9 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                                 height: 200,
                                 color: const Color(0xFF2A2A2A),
                                 child: const Center(
-                                  child: CircularProgressIndicator(color: Colors.blueAccent),
+                                  child: CircularProgressIndicator(
+                                    color: Colors.blueAccent,
+                                  ),
                                 ),
                               );
                             },
@@ -306,9 +425,19 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.broken_image, color: Colors.white38, size: 36),
+                                      Icon(
+                                        Icons.broken_image,
+                                        color: Colors.white38,
+                                        size: 36,
+                                      ),
                                       SizedBox(height: 4),
-                                      Text('No se pudo cargar la imagen', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                                      Text(
+                                        'No se pudo cargar la imagen',
+                                        style: TextStyle(
+                                          color: Colors.white38,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -325,34 +454,57 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                               Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: Colors.blueAccent.withValues(alpha: 0.2),
+                                      color: Colors.blueAccent.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
                                       item.category,
-                                      style: const TextStyle(color: Colors.blueAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                                      style: const TextStyle(
+                                        color: Colors.blueAccent,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                   if (item.isImportant) ...[
                                     const SizedBox(width: 8),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: Colors.redAccent.withValues(alpha: 0.2),
+                                        color: Colors.redAccent.withValues(
+                                          alpha: 0.2,
+                                        ),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: const Text(
                                         'Urgente',
-                                        style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                          color: Colors.redAccent,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ],
                                   const Spacer(),
                                   Text(
-                                    item.date.isNotEmpty ? item.date : 'Pendiente de fecha',
-                                    style: const TextStyle(color: Colors.white38, fontSize: 12),
+                                    item.date.isNotEmpty
+                                        ? item.date
+                                        : 'Pendiente de fecha',
+                                    style: const TextStyle(
+                                      color: Colors.white38,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -374,20 +526,50 @@ class _AnnouncementsViewState extends State<AnnouncementsView> {
                                   height: 1.5,
                                 ),
                               ),
+                              if (item.linkUrl?.isNotEmpty ?? false)
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TextButton.icon(
+                                    onPressed: () => launchUrl(
+                                      Uri.parse(item.linkUrl!),
+                                      mode: LaunchMode.externalApplication,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.open_in_new,
+                                      size: 17,
+                                    ),
+                                    label: const Text('Abrir enlace adjunto'),
+                                  ),
+                                ),
                               const SizedBox(height: 12),
                               const Divider(color: Colors.white12),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'Publicado por: ${item.author.isNotEmpty ? item.author : 'Pendiente de asignación'}',
-                                    style: const TextStyle(color: Colors.white38, fontSize: 12, fontStyle: FontStyle.italic),
+                                    style: const TextStyle(
+                                      color: Colors.white38,
+                                      fontSize: 12,
+                                      fontStyle: FontStyle.italic,
+                                    ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.share_outlined, color: Colors.white54, size: 20),
+                                    icon: const Icon(
+                                      Icons.share_outlined,
+                                      color: Colors.white54,
+                                      size: 20,
+                                    ),
                                     onPressed: () {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Enlace del comunicado copiado')),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Enlace del comunicado copiado',
+                                          ),
+                                        ),
                                       );
                                     },
                                   ),

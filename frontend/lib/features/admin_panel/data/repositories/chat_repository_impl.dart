@@ -6,7 +6,8 @@ import '../services/chat_service.dart';
 class ChatRepositoryImpl implements ChatRepository {
   final ChatService service;
 
-  ChatRepositoryImpl({ChatService? service}) : service = service ?? ChatServiceImpl();
+  ChatRepositoryImpl({ChatService? service})
+    : service = service ?? ChatServiceImpl();
 
   @override
   Future<List<ChatMessageEntity>> getMessages() async {
@@ -19,6 +20,7 @@ class ChatRepositoryImpl implements ChatRepository {
             avatarUrl: message.avatarUrl,
             text: message.text,
             audioDuration: message.audioDuration,
+            audioUrl: message.audioUrl,
             time: message.time,
             date: message.date,
             isAdmin: message.isAdmin,
@@ -37,6 +39,7 @@ class ChatRepositoryImpl implements ChatRepository {
       avatarUrl: sent.avatarUrl,
       text: sent.text,
       audioDuration: sent.audioDuration,
+      audioUrl: sent.audioUrl,
       time: sent.time,
       date: sent.date,
       isAdmin: sent.isAdmin,

@@ -7,6 +7,7 @@ class ChatMessageModel extends ChatMessageEntity {
     super.avatarUrl,
     required super.text,
     super.audioDuration,
+    super.audioUrl,
     required super.time,
     required super.date,
     required super.isAdmin,
@@ -33,6 +34,7 @@ class ChatMessageModel extends ChatMessageEntity {
       avatarUrl: json['avatarUrl'] ?? json['avatar_url'],
       text: (json['text'] ?? json['body'] ?? '').toString(),
       audioDuration: json['audioDuration'] ?? json['audio_duration'],
+      audioUrl: audioUrl?.toString(),
       time:
           '${parsedTimestamp.toLocal().hour.toString().padLeft(2, '0')}:${parsedTimestamp.toLocal().minute.toString().padLeft(2, '0')}',
       date: parsedTimestamp.toLocal(),
@@ -48,6 +50,7 @@ class ChatMessageModel extends ChatMessageEntity {
       'avatarUrl': avatarUrl,
       'text': text,
       'audioDuration': audioDuration,
+      'audioUrl': audioUrl,
       'time': time,
       'date': date.toIso8601String(),
       'isAdmin': isAdmin,

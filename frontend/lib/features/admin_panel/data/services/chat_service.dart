@@ -11,7 +11,8 @@ abstract class ChatService {
 class ChatServiceImpl implements ChatService {
   final ApiClient _apiClient;
 
-  ChatServiceImpl({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
+  ChatServiceImpl({ApiClient? apiClient})
+    : _apiClient = apiClient ?? ApiClient();
 
   Future<String> _defaultThreadId() async {
     final data = await _apiClient.getJson('/api/chat/thread/default');
@@ -21,8 +22,14 @@ class ChatServiceImpl implements ChatService {
   @override
   Future<List<ChatMessageModel>> fetchMessages() async {
     final threadId = await _defaultThreadId();
-    final items = await _apiClient.getList('/api/chat/messages', queryParameters: {'thread_id': threadId});
-    return items.cast<Map<String, dynamic>>().map(ChatMessageModel.fromJson).toList(growable: false);
+    final items = await _apiClient.getList(
+      '/api/chat/messages',
+      queryParameters: {'thread_id': threadId},
+    );
+    return items
+        .cast<Map<String, dynamic>>()
+        .map(ChatMessageModel.fromJson)
+        .toList(growable: false);
   }
 
   @override
@@ -31,7 +38,7 @@ class ChatServiceImpl implements ChatService {
     final payload = {
       'thread_id': threadId,
       'body': message.text,
-      'audio_url': null,
+      'audio_url': message.audioUrl,
       'audio_duration': message.audioDuration,
     };
     final data = await _apiClient.postJson('/api/chat/messages', payload);

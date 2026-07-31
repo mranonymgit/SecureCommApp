@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from math import asin, cos, radians, sin, sqrt
 from uuid import UUID, uuid4
 
 import httpx
@@ -23,6 +24,8 @@ from .models import (
     FaqQuestion,
     PanicAlert,
     PanicStatus,
+    PasswordChangeApproval,
+    PasswordChangeStatus,
     Report,
     ReportStatus,
     ResidentProfile,
@@ -64,6 +67,56 @@ class AuthRepository:
             return False
         user.password_hash = new_password_hash
         return True
+
+    async def create_password_change_request(self, community_id: UUID, user_id: UUID, password_hash: str) -> PasswordChangeApproval:
+        result = await self.session.execute(
+            select(PasswordChangeApproval).options(selectinload(PasswordChangeApproval.requester)).where(
+                PasswordChangeApproval.community_id == community_id,
+                PasswordChangeApproval.user_id == user_id,
+                PasswordChangeApproval.status == PasswordChangeStatus.pending,
+                PasswordChangeApproval.deleted_at.is_(None),
+            )
+        )
+        pending = result.scalars().first()
+        if pending:
+            pending.requested_password_hash = password_hash
+            return pending
+        item = PasswordChangeApproval(
+            id=uuid4(), community_id=community_id, user_id=user_id,
+            requested_password_hash=password_hash, status=PasswordChangeStatus.pending,
+        )
+        self.session.add(item)
+        return item
+
+    async def list_password_change_requests(self, community_id: UUID) -> list[PasswordChangeApproval]:
+        result = await self.session.execute(
+            select(PasswordChangeApproval)
+            .options(selectinload(PasswordChangeApproval.requester))
+            .where(PasswordChangeApproval.community_id == community_id, PasswordChangeApproval.deleted_at.is_(None))
+            .order_by(PasswordChangeApproval.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    async def review_password_change_request(self, community_id: UUID, request_id: UUID, reviewer_id: UUID, approved: bool) -> PasswordChangeApproval | None:
+        result = await self.session.execute(
+            select(PasswordChangeApproval).options(selectinload(PasswordChangeApproval.requester)).where(
+                PasswordChangeApproval.id == request_id,
+                PasswordChangeApproval.community_id == community_id,
+                PasswordChangeApproval.status == PasswordChangeStatus.pending,
+                PasswordChangeApproval.deleted_at.is_(None),
+            )
+        )
+        item = result.scalars().first()
+        if item is None:
+            return None
+        item.status = PasswordChangeStatus.approved if approved else PasswordChangeStatus.rejected
+        item.reviewed_by_user_id = reviewer_id
+        item.reviewed_at = datetime.now(timezone.utc)
+        if approved:
+            updated = await self.update_password(community_id, item.user_id, item.requested_password_hash)
+            if not updated:
+                return None
+        return item
 
 
 class DashboardRepository:
@@ -127,7 +180,7 @@ class ResidentRepository:
                     "illnesses": profile.conditions,
                     "allergies": profile.allergies,
                     "emergency_contact": profile.emergency_contact_name,
-                    "avatar_url": "",
+                    "avatar_url": user.avatar_url,
                 }
             )
         return items
@@ -228,9 +281,11 @@ class AnnouncementRepository:
             title=payload.title,
             content=payload.content,
             image_url=payload.image_url,
+            link_url=payload.link_url,
             is_important=payload.is_important,
         )
         self.session.add(item)
+        await _notify_role(self.session, community_id, UserRole.resident, "Nuevo aviso", f"Administración publicó: {payload.title}", "announcement")
         return item
 
     async def reaction_summary(self, community_id: UUID, announcement_id: UUID, user_id: UUID) -> dict[str, int | str | None]:
@@ -322,6 +377,8 @@ class ChatRepository:
         # trigger an async lazy load while FastAPI is serializing the message.
         msg.sender_user = sender
         self.session.add(msg)
+        recipients = await self.session.execute(select(User.id).where(User.community_id == community_id, User.id != sender_id, User.status == AccountStatus.active, User.deleted_at.is_(None)))
+        self.session.add_all([UserNotification(id=uuid4(), community_id=community_id, user_id=user_id, title="Nuevo mensaje comunitario", message=f"{sender.full_name}: {'envió un audio' if payload.audio_url else payload.body[:180]}", source_type="chat") for user_id in recipients.scalars().all()])
         return msg
 
     async def summary(self, community_id: UUID) -> str:
@@ -330,7 +387,7 @@ class ChatRepository:
             .options(selectinload(ChatMessage.sender_user))
             .where(ChatMessage.community_id == community_id, ChatMessage.deleted_at.is_(None))
             .order_by(ChatMessage.created_at.desc())
-            .limit(10)
+            .limit(80)
         )
         messages = list(result.scalars().all())
         if not messages:
@@ -345,13 +402,15 @@ class ChatRepository:
             )
 
         transcript = "\n".join(
-            f"- {(getattr(item.sender_user, 'full_name', None) or item.sender_user_id)}: {item.body}"
+            f"- {'Administración' if item.is_admin else (getattr(item.sender_user, 'full_name', None) or 'Residente')}: "
+            f"{item.body if not item.audio_url else '[envió un audio]'}"
             for item in reversed(messages)
         )
 
         prompt = (
-            "Resume el siguiente chat comunitario en español, en 3 viñetas máximo. "
-            "Resalta avisos, acuerdos y riesgos. No inventes información.\n\n"
+            "Resume el siguiente chat comunitario completo en español, en máximo 3 frases. "
+            "Indica quién dijo qué y la respuesta relevante. Si solo hubo saludos, dilo claramente. "
+            "Incluye acuerdos, preguntas sin respuesta y riesgos, pero nunca inventes información.\n\n"
             f"{transcript}"
         )
 
@@ -434,6 +493,7 @@ class ReportRepository:
             status=ReportStatus.pending,
         )
         self.session.add(report)
+        await _notify_role(self.session, community_id, UserRole.admin, "Nuevo reporte", f"Se reportó: {payload.title}", "report")
         return report
 
     async def update_status(self, *, community_id: UUID, report_id: UUID, status: ReportStatus) -> Report | None:
@@ -467,7 +527,16 @@ class ReportRepository:
             "direccion": f"{unit.tower} - {unit.unit_number}",
         }
 
-    async def toggle_sos(self, *, community_id: UUID, resident_id: UUID, actor_id: UUID, active: bool) -> PanicAlert:
+    async def toggle_sos(self, *, community_id: UUID, resident_id: UUID, actor_id: UUID, active: bool) -> tuple[PanicAlert, str]:
+        if not active:
+            result = await self.session.execute(select(PanicAlert).where(PanicAlert.community_id == community_id, PanicAlert.resident_user_id == resident_id, PanicAlert.status == PanicStatus.active, PanicAlert.deleted_at.is_(None)).order_by(PanicAlert.created_at.desc()))
+            alert = result.scalars().first()
+            if alert is None:
+                alert = PanicAlert(id=uuid4(), community_id=community_id, resident_user_id=resident_id, activated_by_user_id=actor_id, status=PanicStatus.resolved, message="SOS resolved from the app")
+                self.session.add(alert)
+            else:
+                alert.status = PanicStatus.resolved
+            return alert, "resolved"
         alert = PanicAlert(
             id=uuid4(),
             community_id=community_id,
@@ -477,7 +546,46 @@ class ReportRepository:
             message="SOS toggled from the app",
         )
         self.session.add(alert)
-        return alert
+        location = await self.session.execute(select(UserPreference.home_latitude, UserPreference.home_longitude).where(UserPreference.community_id == community_id, UserPreference.user_id == resident_id, UserPreference.deleted_at.is_(None)))
+        origin = location.first()
+        latitude = float(origin[0]) if origin and origin[0] is not None else None
+        longitude = float(origin[1]) if origin and origin[1] is not None else None
+        actor = await self.session.get(User, resident_id)
+        users = await self.session.execute(select(User, UserPreference).join(UserPreference, (UserPreference.user_id == User.id) & (UserPreference.community_id == User.community_id), isouter=True).where(User.community_id == community_id, User.id != resident_id, User.status == AccountStatus.active, User.deleted_at.is_(None)))
+        for user, preference in users.all():
+            level = "notification"
+            if user.role == UserRole.resident and latitude is not None and longitude is not None and preference and preference.home_latitude is not None and preference.home_longitude is not None:
+                distance = _distance_meters(latitude, longitude, float(preference.home_latitude), float(preference.home_longitude))
+                level = "critical_nearby" if distance <= 200 else "warning" if distance <= 250 else "notification"
+            self.session.add(UserNotification(id=uuid4(), community_id=community_id, user_id=user.id, title="SOS cercano" if level == "critical_nearby" else "Alerta SOS de la comunidad", message=f"{actor.full_name if actor else 'Un residente'} activó SOS.", source_type=f"sos:{level}"))
+        return alert, "active"
+
+    async def sos_proximity(self, community_id: UUID, user_id: UUID, is_admin: bool) -> dict:
+        result = await self.session.execute(select(PanicAlert).where(PanicAlert.community_id == community_id, PanicAlert.status == PanicStatus.active, PanicAlert.deleted_at.is_(None)).order_by(PanicAlert.created_at.desc()))
+        alert = result.scalars().first()
+        if alert is None or alert.resident_user_id == user_id:
+            return {"active": False}
+        origin = await self.session.execute(select(UserPreference.home_latitude, UserPreference.home_longitude).where(UserPreference.community_id == community_id, UserPreference.user_id == alert.resident_user_id, UserPreference.deleted_at.is_(None)))
+        target = await self.session.execute(select(UserPreference.home_latitude, UserPreference.home_longitude).where(UserPreference.community_id == community_id, UserPreference.user_id == user_id, UserPreference.deleted_at.is_(None)))
+        source_row, target_row = origin.first(), target.first()
+        latitude = float(source_row[0]) if source_row and source_row[0] is not None else None
+        longitude = float(source_row[1]) if source_row and source_row[1] is not None else None
+        level = "notification"
+        if not is_admin and latitude is not None and longitude is not None and target_row and target_row[0] is not None and target_row[1] is not None:
+            distance = _distance_meters(latitude, longitude, float(target_row[0]), float(target_row[1]))
+            level = "critical_nearby" if distance <= 200 else "warning" if distance <= 250 else "notification"
+        return {"active": True, "level": level, "message": "Un residente activó una alerta SOS.", "latitude": latitude, "longitude": longitude}
+
+
+async def _notify_role(session: AsyncSession, community_id: UUID, role: UserRole, title: str, message: str, source_type: str) -> None:
+    result = await session.execute(select(User.id).where(User.community_id == community_id, User.role == role, User.status == AccountStatus.active, User.deleted_at.is_(None)))
+    session.add_all([UserNotification(id=uuid4(), community_id=community_id, user_id=user_id, title=title, message=message, source_type=source_type) for user_id in result.scalars().all()])
+
+
+def _distance_meters(latitude_a: float, longitude_a: float, latitude_b: float, longitude_b: float) -> float:
+    delta_lat, delta_lon = radians(latitude_b - latitude_a), radians(longitude_b - longitude_a)
+    value = sin(delta_lat / 2) ** 2 + cos(radians(latitude_a)) * cos(radians(latitude_b)) * sin(delta_lon / 2) ** 2
+    return 6371000 * 2 * asin(sqrt(value))
 
 
 class UserProfileRepository:
@@ -691,3 +799,36 @@ class UserProfileRepository:
         item = FaqQuestion(id=uuid4(), community_id=community_id, user_id=user_id, question=question, status="pending")
         self.session.add(item)
         return item
+
+    async def create_rule(self, community_id: UUID, payload) -> CommunityRule:
+        item = CommunityRule(id=uuid4(), community_id=community_id, title=payload.title, description=payload.description, display_order=payload.display_order, is_active=True)
+        self.session.add(item)
+        return item
+
+    async def create_faq(self, community_id: UUID, payload) -> CommunityFaq:
+        item = CommunityFaq(id=uuid4(), community_id=community_id, question=payload.question, answer=payload.answer, is_active=True)
+        self.session.add(item)
+        return item
+
+    async def list_faq_questions(self, community_id: UUID) -> list[tuple[FaqQuestion, User]]:
+        result = await self.session.execute(
+            select(FaqQuestion, User).join(User, User.id == FaqQuestion.user_id).where(
+                FaqQuestion.community_id == community_id, FaqQuestion.deleted_at.is_(None)
+            ).order_by(FaqQuestion.created_at.desc())
+        )
+        return list(result.all())
+
+    async def answer_faq_question(self, community_id: UUID, question_id: UUID, answer: str) -> CommunityFaq | None:
+        result = await self.session.execute(
+            select(FaqQuestion).where(
+                FaqQuestion.id == question_id, FaqQuestion.community_id == community_id,
+                FaqQuestion.deleted_at.is_(None), FaqQuestion.status == "pending",
+            )
+        )
+        submitted = result.scalars().first()
+        if submitted is None:
+            return None
+        submitted.status = "answered"
+        faq = CommunityFaq(id=uuid4(), community_id=community_id, question=submitted.question, answer=answer, is_active=True)
+        self.session.add(faq)
+        return faq

@@ -1,5 +1,6 @@
-import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/entities/chat_message_entity.dart';
 import '../../domain/usecases/get_chat_ai_summary_usecase.dart';
 import '../../domain/usecases/get_chat_messages_usecase.dart';
@@ -22,18 +23,12 @@ class ChatController extends ChangeNotifier {
   String _searchQuery = '';
   DateTimeRange? _selectedDateRange;
 
-  bool _isRecording = false;
-  int _recordingSeconds = 0;
-  Timer? _timer;
-
   List<ChatMessageEntity> get messages => _messages;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get hasError => _errorMessage != null;
   String get searchQuery => _searchQuery;
   DateTimeRange? get selectedDateRange => _selectedDateRange;
-  bool get isRecording => _isRecording;
-  int get recordingSeconds => _recordingSeconds;
 
   List<ChatMessageEntity> get filteredMessages {
     return _messages.where((msg) {
@@ -85,6 +80,7 @@ class ChatController extends ChangeNotifier {
     required String text,
     bool isAudio = false,
     String? duration,
+    String? audioUrl,
   }) async {
     if (text.trim().isEmpty) return false;
 
@@ -94,6 +90,7 @@ class ChatController extends ChangeNotifier {
       avatarUrl: null,
       text: text.trim(),
       audioDuration: duration,
+      audioUrl: audioUrl,
       time: 'Ahora',
       date: DateTime.now(),
       isAdmin: true,
@@ -116,23 +113,34 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  void toggleRecording() {
-    if (_isRecording) {
-      _timer?.cancel();
-      _isRecording = false;
-      _recordingSeconds = 0;
-      _errorMessage =
-          'El envío de audio requiere integrar almacenamiento y grabación reales.';
+  Future<bool> sendAudio(Uint8List bytes, String filename) async {
+    try {
+      final lower = filename.toLowerCase();
+      final contentType = lower.endsWith('.m4a')
+          ? 'audio/mp4'
+          : lower.endsWith('.ogg')
+          ? 'audio/ogg'
+          : lower.endsWith('.webm')
+          ? 'audio/webm'
+          : lower.endsWith('.wav')
+          ? 'audio/wav'
+          : 'audio/mpeg';
+      final upload = await ApiClient().uploadBytes(
+        '/api/storage/chat-audio',
+        bytes: bytes,
+        filename: filename,
+        contentType: contentType,
+      );
+      return sendMessage(
+        text: 'Audio',
+        isAudio: true,
+        audioUrl: (upload['object_path'] ?? '').toString(),
+      );
+    } catch (error) {
+      _errorMessage = 'No fue posible enviar el audio.';
+      debugPrint('Error al enviar audio: $error');
       notifyListeners();
-    } else {
-      _isRecording = true;
-      _recordingSeconds = 0;
-      notifyListeners();
-
-      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        _recordingSeconds++;
-        notifyListeners();
-      });
+      return false;
     }
   }
 
@@ -147,7 +155,6 @@ class ChatController extends ChangeNotifier {
 
   @override
   void dispose() {
-    _timer?.cancel();
     super.dispose();
   }
 }

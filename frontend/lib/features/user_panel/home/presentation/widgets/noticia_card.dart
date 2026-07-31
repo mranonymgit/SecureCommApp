@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../domain/entities/news_post.dart';
 
 class NoticiaCard extends StatefulWidget {
@@ -73,7 +74,10 @@ class _NoticiaCardState extends State<NoticiaCard> {
                         ),
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: theme.colorScheme.primary,
                             borderRadius: BorderRadius.circular(6),
@@ -115,7 +119,9 @@ class _NoticiaCardState extends State<NoticiaCard> {
           Text(
             noticia.descripcion,
             maxLines: _isExpanded ? null : 3,
-            overflow: _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+            overflow: _isExpanded
+                ? TextOverflow.visible
+                : TextOverflow.ellipsis,
             style: TextStyle(
               color: theme.colorScheme.onSurface.withOpacity(0.8),
               fontSize: 14,
@@ -159,13 +165,18 @@ class _NoticiaCardState extends State<NoticiaCard> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.broken_image,
-                              color: theme.colorScheme.onSurface.withOpacity(0.4), size: 40),
+                          Icon(
+                            Icons.broken_image,
+                            color: theme.colorScheme.onSurface.withOpacity(0.4),
+                            size: 40,
+                          ),
                           const SizedBox(height: 4),
                           Text(
                             'Error al cargar la imagen',
                             style: TextStyle(
-                              color: theme.colorScheme.onSurface.withOpacity(0.4),
+                              color: theme.colorScheme.onSurface.withOpacity(
+                                0.4,
+                              ),
                               fontSize: 12,
                             ),
                           ),
@@ -180,13 +191,27 @@ class _NoticiaCardState extends State<NoticiaCard> {
                     height: 200,
                     color: theme.colorScheme.surface,
                     child: Center(
-                      child: CircularProgressIndicator(color: theme.colorScheme.primary),
+                      child: CircularProgressIndicator(
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
                   );
                 },
               ),
             ),
           ],
+          if (noticia.linkUrl?.isNotEmpty ?? false)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => launchUrl(
+                  Uri.parse(noticia.linkUrl!),
+                  mode: LaunchMode.externalApplication,
+                ),
+                icon: const Icon(Icons.open_in_new, size: 17),
+                label: const Text('Abrir enlace adjunto'),
+              ),
+            ),
           const SizedBox(height: 12),
           Divider(color: theme.dividerColor),
           Row(
@@ -196,7 +221,10 @@ class _NoticiaCardState extends State<NoticiaCard> {
                 onTap: widget.onLike,
                 borderRadius: BorderRadius.circular(20),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   child: Row(
                     children: [
                       Icon(
@@ -227,7 +255,10 @@ class _NoticiaCardState extends State<NoticiaCard> {
                 onTap: widget.onDislike,
                 borderRadius: BorderRadius.circular(20),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   child: Row(
                     children: [
                       Icon(

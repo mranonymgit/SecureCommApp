@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
-from .models import AnnouncementCategory, PanicStatus, ReportStatus, UserRole, VisitStatus
+from .models import AnnouncementCategory, PanicStatus, PasswordChangeStatus, ReportStatus, UserRole, VisitStatus
 
 
 class TokenResponse(BaseModel):
@@ -30,6 +30,40 @@ class LoginResponse(BaseModel):
 
 class PasswordChangeRequest(BaseModel):
     new_password: str = Field(min_length=12, max_length=72)
+
+
+class PasswordChangeRequestOut(BaseModel):
+    id: UUID
+    user_id: UUID
+    full_name: str
+    email: EmailStr
+    status: PasswordChangeStatus
+    created_at: datetime
+    reviewed_at: datetime | None = None
+
+
+class CommunityRuleCreate(BaseModel):
+    title: str = Field(min_length=3, max_length=160)
+    description: str = Field(min_length=3, max_length=4000)
+    display_order: int = Field(default=0, ge=0)
+
+
+class CommunityFaqCreate(BaseModel):
+    question: str = Field(min_length=3, max_length=500)
+    answer: str = Field(min_length=3, max_length=4000)
+
+
+class FaqQuestionOut(BaseModel):
+    id: UUID
+    question: str
+    status: str
+    full_name: str
+    email: EmailStr
+    created_at: datetime
+
+
+class FaqQuestionAnswer(BaseModel):
+    answer: str = Field(min_length=3, max_length=4000)
 
 
 class LoginRequest(BaseModel):
@@ -166,6 +200,7 @@ class AnnouncementCreate(BaseModel):
     category: AnnouncementCategory
     content: str
     image_url: str | None = None
+    link_url: str | None = Field(default=None, max_length=2048)
     is_important: bool = False
 
 
@@ -177,6 +212,7 @@ class AnnouncementOut(BaseModel):
     author: str
     content: str
     image_url: str | None = None
+    link_url: str | None = None
     is_important: bool
     likes: int = 0
     dislikes: int = 0
@@ -237,6 +273,7 @@ class ReportOut(BaseModel):
     status: ReportStatus
     reporter: str
     created_at: datetime
+    evidence_url: str | None = None
 
 
 class ReportStatusUpdate(BaseModel):
@@ -265,3 +302,12 @@ class PanicAlertOut(BaseModel):
     id: UUID
     status: PanicStatus
     created_at: datetime
+    proximity_level: str | None = None
+
+
+class SosProximityOut(BaseModel):
+    active: bool
+    level: str | None = None
+    message: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None

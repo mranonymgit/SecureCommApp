@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../domain/entities/admin_dashboard_stats_entity.dart';
 import '../../domain/usecases/get_admin_dashboard_stats_usecase.dart';
@@ -11,6 +13,7 @@ class AdminDashboardController extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   int _selectedIndex = 0;
+  Timer? _refreshTimer;
 
   AdminDashboardStatsEntity? get stats => _stats;
   bool get isLoading => _isLoading;
@@ -28,7 +31,9 @@ class AdminDashboardController extends ChangeNotifier {
     } catch (e) {
       _stats = null;
       _errorMessage = 'No fue posible cargar las métricas del panel.';
-      debugPrint('Error al cargar estadísticas del panel de administración: $e');
+      debugPrint(
+        'Error al cargar estadísticas del panel de administración: $e',
+      );
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -38,5 +43,18 @@ class AdminDashboardController extends ChangeNotifier {
   void setSelectedIndex(int index) {
     _selectedIndex = index;
     notifyListeners();
+  }
+
+  void startRealtimeRefresh() {
+    _refreshTimer ??= Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => loadStats(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 }

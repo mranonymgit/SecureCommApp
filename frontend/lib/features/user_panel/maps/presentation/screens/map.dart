@@ -23,6 +23,8 @@ class MapaIncidenciasScreen extends StatefulWidget {
 
 class _MapaIncidenciasScreenState extends State<MapaIncidenciasScreen> {
   late final MapsController _controller;
+  bool _mapReady = false;
+  bool _centeredOnLatestReport = false;
 
   @override
   void initState() {
@@ -36,12 +38,31 @@ class _MapaIncidenciasScreenState extends State<MapaIncidenciasScreen> {
         );
 
     _controller.loadIncidencias();
+    _controller.addListener(_centerOnLatestReport);
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_centerOnLatestReport);
     if (widget.controller == null) _controller.dispose();
     super.dispose();
+  }
+
+  void _centerOnLatestReport() {
+    if (!_mapReady ||
+        _centeredOnLatestReport ||
+        _controller.incidencias.isEmpty) {
+      return;
+    }
+    _centeredOnLatestReport = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _controller.mapController.move(
+          _controller.incidencias.first.ubicacion,
+          15.5,
+        );
+      }
+    });
   }
 
   Color _obtenerColorEstado(EstadoIncidencia estado) {
@@ -89,6 +110,10 @@ class _MapaIncidenciasScreenState extends State<MapaIncidenciasScreen> {
                   options: MapOptions(
                     initialCenter: MapsController.posicionInicial,
                     initialZoom: 14.5,
+                    onMapReady: () {
+                      _mapReady = true;
+                      _centerOnLatestReport();
+                    },
                     onTap: (_, _) {
                       if (incidenciaSel != null) {
                         _controller.deseleccionarIncidencia();
@@ -399,6 +424,32 @@ class _MapaIncidenciasScreenState extends State<MapaIncidenciasScreen> {
                                             height: 1.45,
                                           ),
                                         ),
+                                        if (incidenciaSel
+                                                .evidenciaUrl
+                                                ?.isNotEmpty ??
+                                            false) ...[
+                                          const SizedBox(height: 12),
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            child: Image.network(
+                                              incidenciaSel.evidenciaUrl!,
+                                              height: 150,
+                                              width: double.infinity,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, _, _) =>
+                                                  const SizedBox(
+                                                    height: 56,
+                                                    child: Center(
+                                                      child: Text(
+                                                        'No fue posible cargar la evidencia.',
+                                                      ),
+                                                    ),
+                                                  ),
+                                            ),
+                                          ),
+                                        ],
                                         const SizedBox(height: 12),
                                         Text(
                                           'Reportado por: ${incidenciaSel.reporter.isEmpty ? 'Sin dato' : incidenciaSel.reporter}',

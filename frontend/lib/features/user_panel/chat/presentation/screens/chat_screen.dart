@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../data/repositories/chat_repository_impl.dart';
 import '../../domain/usecases/get_mensajes_usecase.dart';
 import '../../domain/usecases/enviar_mensaje_usecase.dart';
@@ -16,9 +18,9 @@ class Chatscreen extends StatefulWidget {
   State<Chatscreen> createState() => _ChatscreenState();
 }
 
-class _ChatscreenState extends State<Chatscreen> with TickerProviderStateMixin {
+class _ChatscreenState extends State<Chatscreen> {
   late final ChatController _controller;
-  late AnimationController _micAnimationController;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -33,16 +35,15 @@ class _ChatscreenState extends State<Chatscreen> with TickerProviderStateMixin {
         );
 
     _controller.cargarMensajes();
-
-    _micAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    )..repeat(reverse: true);
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 8),
+      (_) => _controller.cargarMensajes(),
+    );
   }
 
   @override
   void dispose() {
-    _micAnimationController.dispose();
+    _refreshTimer?.cancel();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
@@ -151,6 +152,24 @@ class _ChatscreenState extends State<Chatscreen> with TickerProviderStateMixin {
     if (fecha != null) {
       _controller.setFiltroFecha(fecha);
     }
+  }
+
+  Future<void> _adjuntarAudio() async {
+    final selected = await FilePicker.pickFiles(
+      type: FileType.audio,
+      withData: true,
+    );
+    final file = selected?.files.single;
+    if (file == null || file.bytes == null) return;
+    final ok = await _controller.enviarAudio(file.bytes!, file.name);
+    if (!mounted || ok) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _controller.errorMessage ?? 'No se pudo enviar el audio.',
+        ),
+      ),
+    );
   }
 
   @override
@@ -352,15 +371,10 @@ class _ChatscreenState extends State<Chatscreen> with TickerProviderStateMixin {
                             onChanged: (_) => setState(() {}),
                             style: TextStyle(color: colorScheme.onSurface),
                             decoration: InputDecoration(
-                              hintText: _controller.grabandoAudio
-                                  ? 'Grabando audio...'
-                                  : 'Escribe un mensaje...',
+                              hintText: 'Escribe un mensaje...',
                               hintStyle: TextStyle(
-                                color: _controller.grabandoAudio
-                                    ? colorScheme.error
-                                    : colorScheme.onSurface.withOpacity(0.4),
+                                color: colorScheme.onSurface.withOpacity(0.4),
                               ),
-                              enabled: !_controller.grabandoAudio,
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 10,
@@ -391,35 +405,17 @@ class _ChatscreenState extends State<Chatscreen> with TickerProviderStateMixin {
                         ),
                         const SizedBox(width: 8),
                         if (_controller.textController.text.trim().isEmpty)
-                          GestureDetector(
-                            onLongPressStart: (_) =>
-                                _controller.setGrabandoAudio(true),
-                            onLongPressEnd: (_) =>
-                                _controller.reportarAudioNoDisponible(),
-                            child: AnimatedBuilder(
-                              animation: _micAnimationController,
-                              builder: (context, child) {
-                                return Transform.scale(
-                                  scale: _controller.grabandoAudio
-                                      ? 1.0 +
-                                            (_micAnimationController.value *
-                                                0.15)
-                                      : 1.0,
-                                  child: CircleAvatar(
-                                    radius: 22,
-                                    backgroundColor: _controller.grabandoAudio
-                                        ? colorScheme.error
-                                        : colorScheme.primary,
-                                    child: Icon(
-                                      _controller.grabandoAudio
-                                          ? Icons.stop_circle_outlined
-                                          : Icons.mic,
-                                      color: colorScheme.onPrimary,
-                                      size: 22,
-                                    ),
-                                  ),
-                                );
-                              },
+                          CircleAvatar(
+                            radius: 22,
+                            backgroundColor: colorScheme.primary,
+                            child: IconButton(
+                              tooltip: 'Adjuntar audio',
+                              onPressed: _adjuntarAudio,
+                              icon: Icon(
+                                Icons.audio_file,
+                                color: colorScheme.onPrimary,
+                                size: 21,
+                              ),
                             ),
                           )
                         else

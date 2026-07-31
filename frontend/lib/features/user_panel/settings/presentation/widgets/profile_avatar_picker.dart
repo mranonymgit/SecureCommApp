@@ -27,12 +27,17 @@ class ProfileAvatarPicker extends StatelessWidget {
       } else {
         imageProvider = FileImage(File(imageFile!.path));
       }
-    } else if (avatarDataUrl != null && avatarDataUrl!.startsWith('data:image')) {
+    } else if (avatarDataUrl != null &&
+        avatarDataUrl!.startsWith('data:image')) {
       final base64Index = avatarDataUrl!.indexOf('base64,');
       if (base64Index != -1) {
         final raw = avatarDataUrl!.substring(base64Index + 7);
         imageProvider = MemoryImage(base64Decode(raw));
       }
+    } else if (avatarDataUrl != null &&
+        (avatarDataUrl!.startsWith('https://') ||
+            avatarDataUrl!.startsWith('http://'))) {
+      imageProvider = NetworkImage(avatarDataUrl!);
     }
 
     return Stack(
@@ -46,10 +51,10 @@ class ProfileAvatarPicker extends StatelessWidget {
             border: Border.all(color: theme.colorScheme.primary, width: 2),
             boxShadow: [
               BoxShadow(
-                color: theme.colorScheme.primary.withOpacity(0.25),
+                color: theme.colorScheme.primary.withValues(alpha: 0.25),
                 blurRadius: 16,
                 spreadRadius: 2,
-              )
+              ),
             ],
           ),
           child: CircleAvatar(
@@ -60,7 +65,7 @@ class ProfileAvatarPicker extends StatelessWidget {
                 ? Icon(
                     Icons.person,
                     size: 70,
-                    color: theme.colorScheme.onSurface.withOpacity(0.38),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.38),
                   )
                 : null,
           ),

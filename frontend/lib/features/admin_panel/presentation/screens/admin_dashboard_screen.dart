@@ -4,6 +4,7 @@ import '../../domain/usecases/get_admin_dashboard_stats_usecase.dart';
 import '../controllers/admin_dashboard_controller.dart';
 import '../widgets/admin_sidebar.dart';
 import 'views/access_logs_view.dart';
+import 'views/admin_management_views.dart';
 import 'views/admin_overview_view.dart';
 import 'views/announcements_view.dart';
 import 'views/full_chat_screen.dart';
@@ -27,12 +28,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void initState() {
     super.initState();
     final repo = AdminOverviewRepositoryImpl();
-    _controller = widget.controller ??
+    _controller =
+        widget.controller ??
         AdminDashboardController(
           getDashboardStatsUseCase: GetAdminDashboardStatsUseCase(repo),
         );
 
     _controller.loadStats();
+    if (widget.controller == null) _controller.startRealtimeRefresh();
   }
 
   @override
@@ -57,6 +60,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         return const AnnouncementsView();
       case 4:
         return const ReportsView();
+      case 5:
+        return const AdminProfileView();
+      case 6:
+        return const PasswordRequestsView();
+      case 7:
+        return const RulesManagementView();
+      case 8:
+        return const FaqManagementView();
       default:
         return AdminOverviewView(
           controller: _controller,
@@ -104,7 +115,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               if (isDesktop)
                 AdminSidebar(
                   selectedIndex: _controller.selectedIndex,
-                  onItemSelected: (index) => _controller.setSelectedIndex(index),
+                  onItemSelected: (index) =>
+                      _controller.setSelectedIndex(index),
                 ),
               Expanded(
                 child: SafeArea(

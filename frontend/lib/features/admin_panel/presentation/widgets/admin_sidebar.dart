@@ -100,6 +100,20 @@ class AdminSidebar extends StatelessWidget {
               Icons.report_problem,
               'Reportes',
             ),
+            _buildNavItem(
+              5,
+              Icons.account_circle_outlined,
+              Icons.account_circle,
+              'Mi perfil',
+            ),
+            _buildNavItem(
+              6,
+              Icons.lock_reset_outlined,
+              Icons.lock_reset,
+              'Contraseñas',
+            ),
+            _buildNavItem(7, Icons.gavel_outlined, Icons.gavel, 'Reglamento'),
+            _buildNavItem(8, Icons.quiz_outlined, Icons.quiz, 'Preguntas FAQ'),
             const Spacer(),
             const Divider(color: Colors.white12, height: 1),
             ListTile(

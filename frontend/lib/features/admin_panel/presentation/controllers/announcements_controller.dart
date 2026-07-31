@@ -1,4 +1,6 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/entities/announcement_entity.dart';
 import '../../domain/usecases/create_announcement_usecase.dart';
 import '../../domain/usecases/get_announcements_usecase.dart';
@@ -43,6 +45,7 @@ class AnnouncementsController extends ChangeNotifier {
     required String category,
     required String content,
     String? imageUrl,
+    String? linkUrl,
     required bool isImportant,
   }) async {
     final newAnnouncement = AnnouncementEntity(
@@ -53,6 +56,7 @@ class AnnouncementsController extends ChangeNotifier {
       author: '',
       content: content,
       imageUrl: imageUrl,
+      linkUrl: linkUrl,
       isImportant: isImportant,
     );
 
@@ -65,6 +69,28 @@ class AnnouncementsController extends ChangeNotifier {
       _errorMessage = 'No fue posible publicar el comunicado.';
       debugPrint('Error al crear comunicado: $e');
       notifyListeners();
+    }
+  }
+
+  Future<String?> uploadImage(Uint8List bytes, String filename) async {
+    try {
+      final lower = filename.toLowerCase();
+      final contentType = lower.endsWith('.png')
+          ? 'image/png'
+          : lower.endsWith('.webp')
+          ? 'image/webp'
+          : 'image/jpeg';
+      final data = await ApiClient().uploadBytes(
+        '/api/storage/announcement-image',
+        bytes: bytes,
+        filename: filename,
+        contentType: contentType,
+      );
+      return (data['object_path'] ?? '').toString();
+    } catch (error) {
+      _errorMessage = 'No fue posible adjuntar la imagen.';
+      notifyListeners();
+      return null;
     }
   }
 }

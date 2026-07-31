@@ -7,7 +7,7 @@ class AnnouncementsRepositoryImpl implements AnnouncementsRepository {
   final AnnouncementService service;
 
   AnnouncementsRepositoryImpl({AnnouncementService? service})
-      : service = service ?? AnnouncementServiceImpl();
+    : service = service ?? AnnouncementServiceImpl();
 
   @override
   Future<List<AnnouncementEntity>> getAnnouncements() async {
@@ -22,6 +22,7 @@ class AnnouncementsRepositoryImpl implements AnnouncementsRepository {
             author: announcement.author,
             content: announcement.content,
             imageUrl: announcement.imageUrl,
+            linkUrl: announcement.linkUrl,
             isImportant: announcement.isImportant,
           ),
         )
@@ -29,7 +30,9 @@ class AnnouncementsRepositoryImpl implements AnnouncementsRepository {
   }
 
   @override
-  Future<AnnouncementEntity> createAnnouncement(AnnouncementEntity announcement) async {
+  Future<AnnouncementEntity> createAnnouncement(
+    AnnouncementEntity announcement,
+  ) async {
     final created = await service.createAnnouncement(announcement);
     return AnnouncementModel(
       id: created.id,
@@ -39,6 +42,7 @@ class AnnouncementsRepositoryImpl implements AnnouncementsRepository {
       author: created.author,
       content: created.content,
       imageUrl: created.imageUrl,
+      linkUrl: created.linkUrl,
       isImportant: created.isImportant,
     );
   }

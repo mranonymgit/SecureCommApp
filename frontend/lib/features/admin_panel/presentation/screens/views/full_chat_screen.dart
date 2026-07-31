@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../data/repositories/chat_repository_impl.dart';
 import '../../../domain/usecases/get_chat_ai_summary_usecase.dart';
 import '../../../domain/usecases/get_chat_messages_usecase.dart';
@@ -21,6 +24,7 @@ class _FullChatScreenState extends State<FullChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -35,6 +39,10 @@ class _FullChatScreenState extends State<FullChatScreen> {
         );
 
     _controller.loadMessages();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 8),
+      (_) => _controller.loadMessages(),
+    );
   }
 
   @override
@@ -42,6 +50,7 @@ class _FullChatScreenState extends State<FullChatScreen> {
     _messageController.dispose();
     _searchController.dispose();
     _scrollController.dispose();
+    _refreshTimer?.cancel();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
@@ -63,6 +72,24 @@ class _FullChatScreenState extends State<FullChatScreen> {
         }
       });
     }
+  }
+
+  Future<void> _adjuntarAudio() async {
+    final selected = await FilePicker.pickFiles(
+      type: FileType.audio,
+      withData: true,
+    );
+    final file = selected?.files.single;
+    if (file == null || file.bytes == null) return;
+    final ok = await _controller.sendAudio(file.bytes!, file.name);
+    if (!mounted || ok) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _controller.errorMessage ?? 'No se pudo enviar el audio.',
+        ),
+      ),
+    );
   }
 
   void _showAISummary() async {
@@ -360,28 +387,37 @@ class _FullChatScreenState extends State<FullChatScreen> {
                                     ),
                                     const SizedBox(height: 6),
                                     if (isAudio)
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.play_arrow,
-                                            color: Colors.white,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Container(
-                                              height: 4,
-                                              color: Colors.white38,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            msg.audioDuration ?? '0:00',
-                                            style: const TextStyle(
+                                      InkWell(
+                                        onTap: msg.audioUrl == null
+                                            ? null
+                                            : () => launchUrl(
+                                                Uri.parse(msg.audioUrl!),
+                                                mode: LaunchMode
+                                                    .externalApplication,
+                                              ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.play_arrow,
                                               color: Colors.white,
-                                              fontSize: 12,
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Container(
+                                                height: 4,
+                                                color: Colors.white38,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              msg.audioDuration ?? '0:00',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       )
                                     else
                                       Text(
@@ -420,9 +456,6 @@ class _FullChatScreenState extends State<FullChatScreen> {
           AnimatedBuilder(
             animation: _controller,
             builder: (context, _) {
-              final isRecording = _controller.isRecording;
-              final seconds = _controller.recordingSeconds;
-
               return Container(
                 padding: const EdgeInsets.all(12),
                 color: const Color(0xFF1E1E1E),
@@ -431,17 +464,10 @@ class _FullChatScreenState extends State<FullChatScreen> {
                     Expanded(
                       child: TextField(
                         controller: _messageController,
-                        enabled: !isRecording,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
-                          hintText: isRecording
-                              ? 'Grabando audio... 0:${seconds.toString().padLeft(2, '0')}'
-                              : 'Escribe un mensaje...',
-                          hintStyle: TextStyle(
-                            color: isRecording
-                                ? Colors.redAccent
-                                : Colors.white38,
-                          ),
+                          hintText: 'Escribe un mensaje...',
+                          hintStyle: const TextStyle(color: Colors.white38),
                           filled: true,
                           fillColor: const Color(0xFF2A2A2A),
                           border: OutlineInputBorder(
@@ -453,13 +479,12 @@ class _FullChatScreenState extends State<FullChatScreen> {
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: Icon(
-                        isRecording ? Icons.stop : Icons.mic,
-                        color: isRecording
-                            ? Colors.redAccent
-                            : Colors.greenAccent,
+                      icon: const Icon(
+                        Icons.audio_file,
+                        color: Colors.greenAccent,
                       ),
-                      onPressed: _controller.toggleRecording,
+                      tooltip: 'Adjuntar audio',
+                      onPressed: _adjuntarAudio,
                     ),
                     IconButton(
                       onPressed: _handleSendMessage,

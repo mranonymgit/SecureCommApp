@@ -68,6 +68,12 @@ class AccessAction(str, enum.Enum):
     revocation = "revocation"
 
 
+class PasswordChangeStatus(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -174,6 +180,7 @@ class Announcement(Base, TimestampMixin):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    link_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_important: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_by_user = relationship("User", foreign_keys=[created_by_user_id], lazy="joined")
 
@@ -302,6 +309,20 @@ class FaqQuestion(Base, TimestampMixin):
     user_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("app.users.id", ondelete="RESTRICT"), nullable=False)
     question: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
+
+
+class PasswordChangeApproval(Base, TimestampMixin):
+    __tablename__ = "password_change_requests"
+    __table_args__ = {"schema": "app"}
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    community_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("app.communities.id", ondelete="RESTRICT"), nullable=False)
+    user_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("app.users.id", ondelete="RESTRICT"), nullable=False)
+    requested_password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[PasswordChangeStatus] = mapped_column(Enum(PasswordChangeStatus, name="password_change_status", schema="app"), nullable=False, default=PasswordChangeStatus.pending)
+    reviewed_by_user_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), ForeignKey("app.users.id", ondelete="RESTRICT"), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    requester = relationship("User", foreign_keys=[user_id], lazy="joined")
 
 
 class AuditLog(Base):

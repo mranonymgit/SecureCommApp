@@ -15,6 +15,7 @@ class SupabaseStorageService:
     _POLICIES = {
         "report-evidence": ({"image/jpeg", "image/png", "image/webp"}, 5 * 1024 * 1024, "reports"),
         "avatar": ({"image/jpeg", "image/png", "image/webp"}, 2 * 1024 * 1024, "avatars"),
+        "announcement-image": ({"image/jpeg", "image/png", "image/webp"}, 5 * 1024 * 1024, "announcements"),
         "chat-audio": ({"audio/mpeg", "audio/mp4", "audio/aac", "audio/ogg", "audio/webm", "audio/wav"}, 10 * 1024 * 1024, "chat"),
     }
 

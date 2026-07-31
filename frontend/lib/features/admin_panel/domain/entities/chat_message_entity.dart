@@ -4,6 +4,7 @@ class ChatMessageEntity {
   final String? avatarUrl;
   final String text;
   final String? audioDuration;
+  final String? audioUrl;
   final String time;
   final DateTime date;
   final bool isAdmin;
@@ -15,6 +16,7 @@ class ChatMessageEntity {
     this.avatarUrl,
     required this.text,
     this.audioDuration,
+    this.audioUrl,
     required this.time,
     required this.date,
     required this.isAdmin,

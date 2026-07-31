@@ -10,6 +10,7 @@ class NewsPostModel extends NewsPost {
     required super.titulo,
     required super.descripcion,
     super.imagen,
+    super.linkUrl,
     required super.likes,
     required super.dislikes,
     super.userReaction,
@@ -27,13 +28,15 @@ class NewsPostModel extends NewsPost {
 
     return NewsPostModel(
       id: (json['id'] ?? '').toString(),
-      adminNombre: (json['author'] ?? json['adminNombre'] ?? 'Administración').toString(),
+      adminNombre: (json['author'] ?? json['adminNombre'] ?? 'Administración')
+          .toString(),
       adminFoto: (json['adminFoto'] ?? json['author_avatar'] ?? '').toString(),
       fecha: fecha,
       hora: hora,
       titulo: (json['title'] ?? json['titulo'] ?? '').toString(),
       descripcion: (json['content'] ?? json['descripcion'] ?? '').toString(),
       imagen: (json['image_url'] ?? json['imagen'])?.toString(),
+      linkUrl: (json['link_url'] ?? json['linkUrl'])?.toString(),
       likes: (json['likes'] as num?)?.toInt() ?? 0,
       dislikes: (json['dislikes'] as num?)?.toInt() ?? 0,
       userReaction: (json['user_reaction'] ?? json['userReaction'])?.toString(),

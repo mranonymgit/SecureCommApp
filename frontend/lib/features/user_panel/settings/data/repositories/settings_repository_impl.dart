@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../../../core/network/api_client.dart';
 import '../../domain/entities/faq_item.dart';
 import '../../domain/entities/notification_item.dart';
@@ -12,31 +14,43 @@ import '../models/user_preferences_model.dart';
 import '../models/user_profile_model.dart';
 
 class SettingsRepositoryImpl implements SettingsRepository {
-  SettingsRepositoryImpl({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
+  SettingsRepositoryImpl({ApiClient? apiClient})
+    : _apiClient = apiClient ?? ApiClient();
 
   final ApiClient _apiClient;
 
   @override
   Future<List<RuleItem>> getCommunityRules() async {
     final items = await _apiClient.getList('/api/community/rules');
-    return items.cast<Map<String, dynamic>>().map(RuleItemModel.fromJson).toList(growable: false);
+    return items
+        .cast<Map<String, dynamic>>()
+        .map(RuleItemModel.fromJson)
+        .toList(growable: false);
   }
 
   @override
   Future<List<FaqItem>> getFaqs() async {
     final items = await _apiClient.getList('/api/community/faqs');
-    return items.cast<Map<String, dynamic>>().map(FaqItemModel.fromJson).toList(growable: false);
+    return items
+        .cast<Map<String, dynamic>>()
+        .map(FaqItemModel.fromJson)
+        .toList(growable: false);
   }
 
   @override
   Future<List<NotificationItem>> getNotifications() async {
     final items = await _apiClient.getList('/api/me/notifications');
-    return items.cast<Map<String, dynamic>>().map(NotificationItemModel.fromJson).toList(growable: false);
+    return items
+        .cast<Map<String, dynamic>>()
+        .map(NotificationItemModel.fromJson)
+        .toList(growable: false);
   }
 
   @override
   Future<void> submitFaqQuestion(String question) async {
-    await _apiClient.postJson('/api/community/faqs/questions', {'question': question});
+    await _apiClient.postJson('/api/community/faqs/questions', {
+      'question': question,
+    });
   }
 
   @override
@@ -59,6 +73,21 @@ class SettingsRepositoryImpl implements SettingsRepository {
     ).toJson();
     final data = await _apiClient.patchJson('/api/me/profile', payload);
     return UserProfileModel.fromJson(data);
+  }
+
+  Future<String> uploadAvatar(Uint8List bytes, String filename) async {
+    final contentType = filename.toLowerCase().endsWith('.png')
+        ? 'image/png'
+        : filename.toLowerCase().endsWith('.webp')
+        ? 'image/webp'
+        : 'image/jpeg';
+    final data = await _apiClient.uploadBytes(
+      '/api/storage/avatar',
+      bytes: bytes,
+      filename: filename,
+      contentType: contentType,
+    );
+    return (data['object_path'] ?? '').toString();
   }
 
   @override

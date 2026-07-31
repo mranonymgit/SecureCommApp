@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../data/repositories/residents_repository_impl.dart';
 import '../../../domain/entities/resident_entity.dart';
@@ -17,12 +18,14 @@ class ResidentsView extends StatefulWidget {
 
 class _ResidentsViewState extends State<ResidentsView> {
   late final ResidentsController _controller;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     final repo = ResidentsRepositoryImpl();
-    _controller = widget.controller ??
+    _controller =
+        widget.controller ??
         ResidentsController(
           getResidentsUseCase: GetResidentsUseCase(repo),
           addResidentUseCase: AddResidentUseCase(repo),
@@ -30,10 +33,15 @@ class _ResidentsViewState extends State<ResidentsView> {
         );
 
     _controller.loadResidents();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _controller.loadResidents(),
+    );
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
@@ -48,11 +56,16 @@ class _ResidentsViewState extends State<ResidentsView> {
             CircleAvatar(
               radius: 28,
               backgroundColor: Colors.blueAccent,
-              backgroundImage: r.avatarUrl.isNotEmpty ? NetworkImage(r.avatarUrl) : null,
+              backgroundImage: r.avatarUrl.isNotEmpty
+                  ? NetworkImage(r.avatarUrl)
+                  : null,
               child: r.avatarUrl.isEmpty
                   ? Text(
                       r.name.isNotEmpty ? r.name[0] : '?',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     )
                   : null,
             ),
@@ -63,7 +76,11 @@ class _ResidentsViewState extends State<ResidentsView> {
                 children: [
                   Text(
                     r.name,
-                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   Text(
                     r.unit,
@@ -84,7 +101,9 @@ class _ResidentsViewState extends State<ResidentsView> {
               _buildDetailRow('ID Único de Usuario:', r.id),
               _buildDetailRow(
                 'Contraseña Temporal:',
-                r.tempPassword.isNotEmpty ? r.tempPassword : 'No disponible por seguridad',
+                r.tempPassword.isNotEmpty
+                    ? r.tempPassword
+                    : 'No disponible por seguridad',
               ),
               const SizedBox(height: 12),
               _buildSectionTitle('Información Médica y Salud'),
@@ -101,7 +120,9 @@ class _ResidentsViewState extends State<ResidentsView> {
         ),
         actions: [
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2A2A2A)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2A2A2A),
+            ),
             onPressed: () => Navigator.pop(context),
             child: const Text('Cerrar', style: TextStyle(color: Colors.white)),
           ),
@@ -125,7 +146,10 @@ class _ResidentsViewState extends State<ResidentsView> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Alta de Nuevo Residente', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Alta de Nuevo Residente',
+          style: TextStyle(color: Colors.white),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -135,7 +159,11 @@ class _ResidentsViewState extends State<ResidentsView> {
               const SizedBox(height: 8),
               const Text(
                 'El identificador lo genera la base de datos. Define una contraseña temporal segura para el residente.',
-                style: TextStyle(color: Colors.white54, fontSize: 12, height: 1.4),
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 16),
               _buildSectionTitle('Datos Generales'),
@@ -143,13 +171,20 @@ class _ResidentsViewState extends State<ResidentsView> {
               _buildTextField(unitCtrl, 'Casa / Torre / Departamento'),
               _buildTextField(emailCtrl, 'Correo Electrónico'),
               _buildTextField(phoneCtrl, 'Teléfono'),
-              _buildTextField(passwordCtrl, 'Contraseña temporal (mínimo 12 caracteres)', obscureText: true),
+              _buildTextField(
+                passwordCtrl,
+                'Contraseña temporal (mínimo 12 caracteres)',
+                obscureText: true,
+              ),
               const SizedBox(height: 16),
               _buildSectionTitle('Ficha Médica y Emergencia'),
               _buildTextField(bloodCtrl, 'Tipo de Sangre (ej. O+, A-)'),
               _buildTextField(illnessesCtrl, 'Enfermedades / Padecimientos'),
               _buildTextField(allergiesCtrl, 'Alergias a Medicamentos'),
-              _buildTextField(emergencyCtrl, 'Contacto de Emergencia (Nombre y Tel)'),
+              _buildTextField(
+                emergencyCtrl,
+                'Contacto de Emergencia (Nombre y Tel)',
+              ),
             ],
           ),
         ),
@@ -158,13 +193,16 @@ class _ResidentsViewState extends State<ResidentsView> {
             onPressed: () {
               Navigator.pop(dialogContext);
             },
-            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.white54),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-            onPressed: () {
+            onPressed: () async {
               if (nameCtrl.text.isNotEmpty && passwordCtrl.text.length >= 12) {
-                _controller.createResident(
+                final created = await _controller.createResident(
                   name: nameCtrl.text.trim(),
                   unit: unitCtrl.text.trim(),
                   initialPassword: passwordCtrl.text,
@@ -175,10 +213,40 @@ class _ResidentsViewState extends State<ResidentsView> {
                   email: emailCtrl.text.trim(),
                   phone: phoneCtrl.text.trim(),
                 );
-                Navigator.pop(dialogContext);
+                if (!mounted) return;
+                if (created) {
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Residente creado y habilitado para iniciar sesión.',
+                      ),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        _controller.errorMessage ??
+                            'No fue posible crear el residente.',
+                      ),
+                    ),
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Nombre y contraseña de al menos 12 caracteres son obligatorios.',
+                    ),
+                  ),
+                );
               }
             },
-            child: const Text('Guardar Residente', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Guardar Residente',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -188,7 +256,11 @@ class _ResidentsViewState extends State<ResidentsView> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 13),
+      style: const TextStyle(
+        color: Colors.blueAccent,
+        fontWeight: FontWeight.bold,
+        fontSize: 13,
+      ),
     );
   }
 
@@ -198,11 +270,18 @@ class _ResidentsViewState extends State<ResidentsView> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$label ', style: const TextStyle(color: Colors.white54, fontSize: 13)),
+          Text(
+            '$label ',
+            style: const TextStyle(color: Colors.white54, fontSize: 13),
+          ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -210,7 +289,12 @@ class _ResidentsViewState extends State<ResidentsView> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, {bool isNumber = false, bool obscureText = false}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label, {
+    bool isNumber = false,
+    bool obscureText = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10.0),
       child: TextField(
@@ -222,8 +306,12 @@ class _ResidentsViewState extends State<ResidentsView> {
           labelText: label,
           labelStyle: const TextStyle(color: Colors.white60, fontSize: 13),
           isDense: true,
-          enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-          focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.blueAccent)),
+          enabledBorder: const UnderlineInputBorder(
+            borderSide: BorderSide(color: Colors.white24),
+          ),
+          focusedBorder: const UnderlineInputBorder(
+            borderSide: BorderSide(color: Colors.blueAccent),
+          ),
         ),
       ),
     );
@@ -247,16 +335,25 @@ class _ResidentsViewState extends State<ResidentsView> {
                   children: [
                     const Text(
                       'Gestión de Residentes',
-                      style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueAccent,
+                        ),
                         onPressed: _showAddResidentDialog,
                         icon: const Icon(Icons.person_add, color: Colors.white),
-                        label: const Text('Nuevo Residente', style: TextStyle(color: Colors.white)),
+                        label: const Text(
+                          'Nuevo Residente',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     ),
                   ],
@@ -268,13 +365,22 @@ class _ResidentsViewState extends State<ResidentsView> {
                 children: [
                   const Text(
                     'Gestión de Residentes',
-                    style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                    ),
                     onPressed: _showAddResidentDialog,
                     icon: const Icon(Icons.person_add, color: Colors.white),
-                    label: const Text('Nuevo Residente', style: TextStyle(color: Colors.white)),
+                    label: const Text(
+                      'Nuevo Residente',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ],
               );
@@ -292,7 +398,9 @@ class _ResidentsViewState extends State<ResidentsView> {
 
               if (_controller.hasError) {
                 return AdminErrorState(
-                  message: _controller.errorMessage ?? 'No se pudieron cargar los residentes.',
+                  message:
+                      _controller.errorMessage ??
+                      'No se pudieron cargar los residentes.',
                   onRetry: _controller.loadResidents,
                 );
               }
@@ -301,7 +409,8 @@ class _ResidentsViewState extends State<ResidentsView> {
                 return AdminEmptyState(
                   icon: Icons.people_outline,
                   title: 'Sin residentes',
-                  message: 'Todavía no hay residentes cargados desde la base de datos.',
+                  message:
+                      'Todavía no hay residentes cargados desde la base de datos.',
                   actionLabel: 'Reintentar',
                   onAction: _controller.loadResidents,
                 );
@@ -317,16 +426,23 @@ class _ResidentsViewState extends State<ResidentsView> {
                   return Card(
                     color: const Color(0xFF1E1E1E),
                     margin: const EdgeInsets.only(bottom: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: ListTile(
                       onTap: () => _showResidentDetail(r),
                       leading: CircleAvatar(
                         radius: 24,
                         backgroundColor: Colors.blueAccent,
-                        backgroundImage: r.avatarUrl.isNotEmpty ? NetworkImage(r.avatarUrl) : null,
+                        backgroundImage: r.avatarUrl.isNotEmpty
+                            ? NetworkImage(r.avatarUrl)
+                            : null,
                         child: Text(
                           r.name.isNotEmpty ? r.name[0] : '?',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       title: Row(
@@ -334,29 +450,45 @@ class _ResidentsViewState extends State<ResidentsView> {
                           Flexible(
                             child: Text(
                               r.name,
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.redAccent.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               r.bloodType,
-                              style: const TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
                       ),
                       subtitle: Text(
                         '${r.unit} • ID: ${r.id}\nContacto: ${r.phone}',
-                        style: const TextStyle(color: Colors.white54, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                        ),
                       ),
-                      trailing: const Icon(Icons.chevron_right, color: Colors.white38),
+                      trailing: const Icon(
+                        Icons.chevron_right,
+                        color: Colors.white38,
+                      ),
                     ),
                   );
                 },

@@ -6,6 +6,7 @@ class AnnouncementEntity {
   final String author;
   final String content;
   final String? imageUrl;
+  final String? linkUrl;
   final bool isImportant;
 
   const AnnouncementEntity({
@@ -16,6 +17,7 @@ class AnnouncementEntity {
     required this.author,
     required this.content,
     this.imageUrl,
+    this.linkUrl,
     required this.isImportant,
   });
 }
