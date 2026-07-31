@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/features/auth/presentation/screens/loginScreen.dart';
+import 'package:frontend/features/auth/presentation/screens/login_screen.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 
 void main() {
@@ -11,11 +11,16 @@ class VecinalApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'SCA',
-      theme: AppTheme.lightTheme,
-      home: const LoginScreen(),
+    return ValueListenableBuilder<ColorBlindnessTheme>(
+      valueListenable: appThemeNotifier,
+      builder: (context, temaActual, child) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'SCA',
+          theme: temaActual.themeData,
+          home: const LoginScreen(),
+        );
+      },
     );
   }
 }
